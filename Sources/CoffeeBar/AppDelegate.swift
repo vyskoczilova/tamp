@@ -5,6 +5,10 @@ import Foundation
 /// The menu bar controller. Owns the status item, reflects the shared state in
 /// its icon, and drives the engine from menu actions. It watches the state file
 /// so changes made from the CLI show up here too.
+///
+/// The whole class is `@MainActor`: it lives entirely on the main thread and
+/// only touches AppKit, which is main-actor-isolated.
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem!
     private let controller = CaffeinateController()
@@ -25,10 +29,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.imagePosition = .imageOnly
         startWatchingState()
-        // Refresh the "time left" line periodically while active.
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.refresh()
-        }
+        // Refresh the "time left" line periodically while active. Target/action
+        // (rather than a closure) avoids capturing self in a @Sendable block.
+        refreshTimer = Timer.scheduledTimer(
+            timeInterval: 30, target: self, selector: #selector(refreshTick),
+            userInfo: nil, repeats: true
+        )
+        refresh()
+    }
+
+    @objc private func refreshTick() {
         refresh()
     }
 
@@ -140,13 +150,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Actions
 
     @objc private func toggleTapped() {
-        try? controller.toggle()
+        do { try controller.toggle() } catch { logError(error) }
         refresh()
     }
 
     @objc private func durationTapped(_ sender: NSMenuItem) {
         let preset = durationPresets[sender.tag]
-        try? controller.start(duration: preset.seconds)
+        do { try controller.start(duration: preset.seconds) } catch { logError(error) }
         refresh()
     }
 
@@ -171,13 +181,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let state = controller.status()
         if state.active {
             let remaining = state.remaining().map { Int($0) }
-            try? controller.start(duration: remaining, flags: flags)
+            do { try controller.start(duration: remaining, flags: flags) } catch { logError(error) }
         }
         refresh()
     }
 
     @objc private func quitTapped() {
         NSApp.terminate(nil)
+    }
+
+    private func logError(_ error: Error) {
+        NSLog("Coffee: caffeinate action failed — %@", String(describing: error))
     }
 
     // MARK: - State file watching
@@ -195,10 +209,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             queue: .main
         )
         source.setEventHandler { [weak self] in
-            // Atomic writes replace the inode, so re-arm the watch.
-            self?.fileWatcher?.cancel()
-            self?.startWatchingState()
-            self?.refresh()
+            // Delivered on the main queue, so it is safe to assume isolation.
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                // Atomic writes replace the inode, so re-arm the watch.
+                self.fileWatcher?.cancel()
+                self.startWatchingState()
+                self.refresh()
+            }
         }
         source.setCancelHandler { close(fd) }
         fileWatcher = source
