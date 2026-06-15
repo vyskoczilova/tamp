@@ -6,7 +6,10 @@ import Foundation
 struct Coffee: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "coffee",
-        abstract: "Keep your Mac awake. A Raycast-free wrapper around caffeinate.",
+        abstract: """
+        Keep your Mac awake. Karolína Vyskočilová's wrapper around the native \
+        macOS caffeinate command, inspired by the Raycast Coffee extension.
+        """,
         subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Status.self, Icon.self],
         defaultSubcommand: Status.self
     )
