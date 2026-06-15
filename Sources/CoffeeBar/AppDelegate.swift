@@ -94,7 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         let toggle = NSMenuItem(
             title: state.active ? "Turn Off" : "Keep Awake",
-            action: phase == .externallyActive ? nil : #selector(toggleTapped),
+            action: #selector(toggleTapped),
             keyEquivalent: ""
         )
         toggle.target = self
@@ -137,8 +137,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             item.tag = index
             submenu.addItem(item)
         }
+        submenu.addItem(.separator())
+        let custom = NSMenuItem(title: "Custom…", action: #selector(customDurationTapped), keyEquivalent: "")
+        custom.target = self
+        submenu.addItem(custom)
         parent.submenu = submenu
         return parent
+    }
+
+    @objc private func customDurationTapped() {
+        let alert = NSAlert()
+        alert.messageText = "Keep Awake For"
+        alert.informativeText = "Enter a duration: 30m, 1h, 1h30m, 90s"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        field.placeholderString = "e.g. 45m"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Start")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let input = field.stringValue.trimmingCharacters(in: .whitespaces)
+        do {
+            let seconds = try DurationParser.seconds(from: input)
+            try controller.start(duration: seconds)
+            refresh()
+        } catch {
+            let err = NSAlert()
+            err.messageText = "Invalid duration"
+            err.informativeText = String(describing: error)
+            err.runModal()
+        }
     }
 
     private func iconSubmenu() -> NSMenuItem {
