@@ -48,14 +48,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// open, so it isn't touched here.
     private func refresh() {
         let state = controller.status()
-        updateIcon(for: state)
+        let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
+        updateIcon(phase: phase)
         rescheduleExpiryPoll(for: state)
     }
 
-    private func updateIcon(for state: CoffeeState) {
+    private func updateIcon(phase: CoffeeState.Phase) {
         let style = preferences.iconStyle
-        let symbol = state.active ? style.activeSymbol : style.inactiveSymbol
-        let description = state.active ? "Caffeinated" : "Decaffeinated"
+        let isActive = phase != .off
+        let symbol = isActive ? style.activeSymbol : style.inactiveSymbol
+        let description = isActive ? "Caffeinated" : "Decaffeinated"
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
             ?? NSImage(systemSymbolName: "cup.and.saucer", accessibilityDescription: description)
         image?.isTemplate = true
@@ -84,14 +86,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         let state = controller.status()
+        let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
         menu.removeAllItems()
 
-        menu.addItem(statusLine(for: state))
+        menu.addItem(statusLine(phase: phase, state: state))
         menu.addItem(.separator())
 
         let toggle = NSMenuItem(
             title: state.active ? "Turn Off" : "Keep Awake",
-            action: #selector(toggleTapped), keyEquivalent: ""
+            action: phase == .externallyActive ? nil : #selector(toggleTapped),
+            keyEquivalent: ""
         )
         toggle.target = self
         menu.addItem(toggle)
@@ -107,15 +111,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(quit)
     }
 
-    private func statusLine(for state: CoffeeState) -> NSMenuItem {
+    private func statusLine(phase: CoffeeState.Phase, state: CoffeeState) -> NSMenuItem {
         let title: String
-        switch state.phase() {
+        switch phase {
         case .off:
             title = "Off — Mac can sleep"
         case .onTimed(let remaining):
             title = "On — \(DurationParser.format(remaining: remaining)) left"
         case .onIndefinite:
             title = "On — until turned off"
+        case .externallyActive:
+            title = "On — caffeinated by another app"
         }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false

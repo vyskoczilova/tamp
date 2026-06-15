@@ -12,6 +12,8 @@ both built around macOS's built-in `caffeinate`.
   including coffee **brewing concepts** (pour-over, espresso, French press, kettle)
 - A `coffee` CLI and the menu bar app share one source of truth, so changing
   state in one is reflected in the other
+- The icon and status also reflect **external caffeination** — if another tool
+  (e.g. Claude Code hooks) is keeping the Mac awake, Coffee shows it
 
 ## Build
 
@@ -75,6 +77,11 @@ timed sessions. The running PID and session details are persisted to
 `~/Library/Application Support/Coffee/state.json`; the menu bar app watches that
 file so CLI changes show up immediately. If a tracked process dies (timer
 elapsed or manual kill), the state self-reconciles to "off".
+
+When Coffee's own state is inactive, it also checks (`pgrep -x caffeinate`)
+whether any external process is caffeinating the Mac. If so, the icon and status
+line show "On — caffeinated by another app" — read-only, Coffee never touches
+external processes. See `docs/adr/001-system-aware-caffeinate-detection.md`.
 
 ## Tests
 

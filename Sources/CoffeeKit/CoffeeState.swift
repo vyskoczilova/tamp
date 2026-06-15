@@ -74,10 +74,16 @@ public struct CoffeeState: Codable, Equatable, Sendable {
         case off
         case onIndefinite
         case onTimed(remaining: TimeInterval)
+        /// The Mac is caffeinated by an external process (not Coffee's own session).
+        case externallyActive
     }
 
-    public func phase(now: Date = Date()) -> Phase {
-        guard active else { return .off }
+    /// Pass `systemActive: SystemAssertions.isCaffeinated()` to get a phase
+    /// that reflects the real OS state, including external caffeinate processes.
+    public func phase(systemActive: Bool = false, now: Date = Date()) -> Phase {
+        guard active else {
+            return systemActive ? .externallyActive : .off
+        }
         if let remaining = remaining(now: now) { return .onTimed(remaining: remaining) }
         return .onIndefinite
     }

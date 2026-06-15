@@ -54,7 +54,7 @@ struct Off: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Allow sleep again.")
     func run() throws {
         let state = CaffeinateController().stop()
-        print(describe(state))
+        print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
     }
 }
 
@@ -62,7 +62,7 @@ struct Toggle: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Toggle keep-awake on/off.")
     func run() throws {
         let state = try CaffeinateController().toggle()
-        print(describe(state))
+        print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
     }
 }
 
@@ -108,7 +108,7 @@ struct Status: ParsableCommand {
             let data = try JSONEncoder.coffee.encode(state)
             print(String(decoding: data, as: UTF8.self))
         } else {
-            print(describe(state))
+            print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
         }
     }
 }
@@ -139,13 +139,15 @@ struct Icon: ParsableCommand {
 }
 
 /// Render a state as a one-line human summary.
-func describe(_ state: CoffeeState) -> String {
-    switch state.phase() {
+func describe(_ state: CoffeeState, systemActive: Bool = false) -> String {
+    switch state.phase(systemActive: systemActive) {
     case .off:
         return "☕️ Off — your Mac can sleep normally."
     case .onTimed(let remaining):
         return "☕️ On — \(DurationParser.format(remaining: remaining)) left."
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
+    case .externallyActive:
+        return "☕️ On — caffeinated by another app."
     }
 }

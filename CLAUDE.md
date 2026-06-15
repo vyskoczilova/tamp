@@ -47,7 +47,8 @@ PID stored in our state file, never all `caffeinate` processes.
 Sources/
 ├── CoffeeKit/        shared engine library (the only place with real logic)
 │   ├── CaffeinateController.swift  spawn/kill tracked caffeinate; reconcile state
-│   ├── CoffeeState.swift           Codable state model (active/pid/endsAt/flags) + Phase
+│   ├── CoffeeState.swift           Codable state model (active/pid/endsAt/flags) + Phase enum
+│   ├── SystemAssertions.swift      pgrep-based check for external caffeinate processes
 │   ├── StateStore.swift            read/write the shared state JSON (NSFileCoordinator)
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
 │   ├── Duration.swift              parse "1h30m"/"90s"/bare-minutes and "until HH:MM"
@@ -74,6 +75,10 @@ it from both front-ends so they never drift.
   refreshes its icon when the CLI changes state.
 - `CaffeinateController.status()` reconciles: if the recorded PID is no longer
   alive (timer elapsed or manual kill), state is corrected to inactive.
+- When Coffee's own state is inactive, `SystemAssertions.isCaffeinated()` checks
+  `pgrep -x caffeinate`; if alive, `CoffeeState.Phase.externallyActive` is
+  returned so both front-ends can display "caffeinated by another app".
+  Coffee never kills or manages external processes.
 
 ### Sleep flags → `caffeinate`
 
