@@ -16,8 +16,14 @@ swift build                 # debug build of all products
 swift build -c release      # release build → .build/release/{coffee,CoffeeBar}
 swift run CoffeeKitChecks   # run the test harness (exits non-zero on failure)
 .build/debug/coffee status  # run the CLI
-.build/debug/CoffeeBar &    # run the menu bar app
+.build/debug/CoffeeBar &    # run the menu bar app (bare binary)
+Scripts/make-app.sh         # package build/Coffee.app (ad-hoc signed bundle)
 ```
+
+**App bundle:** `Scripts/make-app.sh` assembles `build/Coffee.app` (writes the
+`Info.plist` with `LSUIElement`, bundle id `cz.kybernaut.coffee`, ad-hoc signs).
+Launch-at-login (`SMAppService`, see `LoginItem.swift`) only works from this
+bundle — the bare binary disables that menu toggle. `build/` is gitignored.
 
 **Tests:** there is no XCTest / Swift Testing target — this machine has Command
 Line Tools only (no full Xcode), so neither framework is importable. Tests live in
@@ -48,6 +54,9 @@ Sources/
 │   └── IconStyle.swift             icon styles incl. brewing concepts → SF Symbol names
 ├── coffee/           CLI (ArgumentParser) — thin wrapper over CoffeeKit
 ├── CoffeeBar/        menu bar app (AppKit NSStatusItem) — thin wrapper over CoffeeKit
+│   ├── main.swift          NSApplication bootstrap (.accessory policy)
+│   ├── AppDelegate.swift   @MainActor status item, menu, state-file watcher
+│   └── LoginItem.swift     SMAppService launch-at-login (needs the .app bundle)
 └── CoffeeKitChecks/  executable test harness for CoffeeKit
 ```
 
@@ -85,8 +94,12 @@ on, disk off. A session never launches a no-op `caffeinate` (falls back to `-i`)
 
 - `caffeinate -w <pid>` ("keep awake while app X runs")
 - Natural-language recurring schedules
-- Launch-at-login via `SMAppService`; notarized `.app` bundle for distribution
 - Custom artwork for the brewing-concept icon styles
+- Distribution: Developer ID signing + notarization (the bundle is ad-hoc
+  signed today, fine for personal use); Homebrew cask
+
+Done since v1.0.0: `Coffee.app` bundle (`Scripts/make-app.sh`) and
+launch-at-login via `SMAppService` (`LoginItem.swift`).
 
 ## License
 

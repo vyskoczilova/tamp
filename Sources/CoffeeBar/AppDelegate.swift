@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(durationSubmenu())
         menu.addItem(iconSubmenu())
         menu.addItem(preventSubmenu())
+        menu.addItem(loginItemMenuItem())
 
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit Coffee", action: #selector(quitTapped), keyEquivalent: "q")
@@ -147,6 +148,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return parent
     }
 
+    private func loginItemMenuItem() -> NSMenuItem {
+        let item = NSMenuItem(title: "Launch at Login", action: #selector(loginItemTapped), keyEquivalent: "")
+        item.target = self
+        if LoginItem.isBundledApp {
+            item.state = LoginItem.isEnabled ? .on : .off
+        } else {
+            item.isEnabled = false
+            item.toolTip = "Available when running the packaged Coffee.app"
+        }
+        return item
+    }
+
     // MARK: - Actions
 
     @objc private func toggleTapped() {
@@ -182,6 +195,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if state.active {
             let remaining = state.remaining().map { Int($0) }
             do { try controller.start(duration: remaining, flags: flags) } catch { logError(error) }
+        }
+        refresh()
+    }
+
+    @objc private func loginItemTapped() {
+        do {
+            try LoginItem.setEnabled(!LoginItem.isEnabled)
+        } catch {
+            logError(error)
         }
         refresh()
     }

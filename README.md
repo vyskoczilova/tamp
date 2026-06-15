@@ -31,10 +31,25 @@ Binaries land in `.build/release/`:
 ```sh
 # CLI on your PATH
 cp .build/release/coffee /usr/local/bin/coffee
-
-# Run the menu bar app (consider adding to Login Items)
-.build/release/CoffeeBar &
 ```
+
+### Menu bar app
+
+Package the menu bar app as a real `Coffee.app` bundle (ad-hoc signed, no Dock
+icon) and run it like any other app:
+
+```sh
+Scripts/make-app.sh           # builds build/Coffee.app
+mv build/Coffee.app /Applications/
+open /Applications/Coffee.app
+```
+
+A coffee-cup icon appears in the menu bar. To start it automatically at login,
+click the icon → **Launch at Login** (uses `SMAppService`; move the app to
+`/Applications` first so the registration points at a stable path).
+
+You can also run the bare binary without bundling — `\.build/release/CoffeeBar &` —
+but then the "Launch at Login" toggle is disabled (it needs a real `.app`).
 
 ## CLI usage
 
@@ -74,9 +89,13 @@ which this setup doesn't have.)
 
 - "Caffeinate while app X runs" (`caffeinate -w <pid>`)
 - Natural-language recurring schedules
-- Launch-at-login via `SMAppService` and a notarized `.app` bundle
 - Custom template artwork for the brewing-concept icon styles (they currently
   fall back to SF Symbols)
+- Distribution: Developer ID signing + notarization (the bundle is ad-hoc
+  signed today, which is fine for personal use) and a Homebrew cask
+
+Done since v1.0.0: a real `Coffee.app` bundle (`Scripts/make-app.sh`) and
+launch-at-login via `SMAppService`.
 
 ## License & attribution
 
