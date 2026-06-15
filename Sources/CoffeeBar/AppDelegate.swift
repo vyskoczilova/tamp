@@ -9,7 +9,7 @@ import Foundation
 /// The whole class is `@MainActor`: it lives entirely on the main thread and
 /// only touches AppKit, which is main-actor-isolated.
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusItem: NSStatusItem!
     private let controller = CaffeinateController()
     private let preferences = Preferences()
@@ -28,13 +28,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.imagePosition = .imageOnly
+        // The menu is rebuilt lazily when it's about to open (see
+        // `menuNeedsUpdate`), so nothing reconstructs it while it's closed.
+        let menu = NSMenu()
+        menu.delegate = self
+        statusItem.menu = menu
         startWatchingState()
-        // Refresh the "time left" line periodically while active. Target/action
-        // (rather than a closure) avoids capturing self in a @Sendable block.
-        refreshTimer = Timer.scheduledTimer(
-            timeInterval: 30, target: self, selector: #selector(refreshTick),
-            userInfo: nil, repeats: true
-        )
         refresh()
     }
 
@@ -44,10 +43,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Rendering
 
+    /// Update everything that's visible while the menu is *closed* (just the
+    /// icon) and keep the expiry poll in sync. The menu itself is rebuilt on
+    /// open, so it isn't touched here.
     private func refresh() {
         let state = controller.status()
         updateIcon(for: state)
-        rebuildMenu(for: state)
+        rescheduleExpiryPoll(for: state)
     }
 
     private func updateIcon(for state: CoffeeState) {
@@ -60,8 +62,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.image = image
     }
 
-    private func rebuildMenu(for state: CoffeeState) {
-        let menu = NSMenu()
+    /// Only a *timed* session changes state on its own — it expires without
+    /// writing the state file, so the file watcher never fires for it. Poll
+    /// while one is live (to flip the icon when it ends) and stop otherwise.
+    private func rescheduleExpiryPoll(for state: CoffeeState) {
+        let shouldPoll = state.active && state.endsAt != nil
+        if shouldPoll {
+            if refreshTimer == nil {
+                refreshTimer = Timer.scheduledTimer(
+                    timeInterval: 30, target: self, selector: #selector(refreshTick),
+                    userInfo: nil, repeats: true
+                )
+            }
+        } else {
+            refreshTimer?.invalidate()
+            refreshTimer = nil
+        }
+    }
+
+    // MARK: - Menu (rebuilt on demand)
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let state = controller.status()
+        menu.removeAllItems()
 
         menu.addItem(statusLine(for: state))
         menu.addItem(.separator())
@@ -82,17 +105,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let quit = NSMenuItem(title: "Quit Coffee", action: #selector(quitTapped), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
-
-        statusItem.menu = menu
     }
 
     private func statusLine(for state: CoffeeState) -> NSMenuItem {
         let title: String
-        if !state.active {
+        switch state.phase() {
+        case .off:
             title = "Off — Mac can sleep"
-        } else if let remaining = state.remaining() {
+        case .onTimed(let remaining):
             title = "On — \(DurationParser.format(remaining: remaining)) left"
-        } else {
+        case .onIndefinite:
             title = "On — until turned off"
         }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
@@ -132,16 +154,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let parent = NSMenuItem(title: "Prevent Sleep Of", action: nil, keyEquivalent: "")
         let submenu = NSMenu()
         let flags = preferences.sleepFlags
-        let rows: [(String, String, Bool)] = [
-            ("display", "Display", flags.display),
-            ("system", "System", flags.system),
-            ("disk", "Disk", flags.disk),
-        ]
-        for (key, label, on) in rows {
-            let item = NSMenuItem(title: label, action: #selector(preventTapped(_:)), keyEquivalent: "")
+        for (index, toggle) in SleepFlags.toggles.enumerated() {
+            let item = NSMenuItem(title: toggle.label, action: #selector(preventTapped(_:)), keyEquivalent: "")
             item.target = self
-            item.representedObject = key
-            item.state = on ? .on : .off
+            item.tag = index
+            item.state = flags[keyPath: toggle.keyPath] ? .on : .off
             submenu.addItem(item)
         }
         parent.submenu = submenu
@@ -181,21 +198,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func preventTapped(_ sender: NSMenuItem) {
-        guard let key = sender.representedObject as? String else { return }
         var flags = preferences.sleepFlags
-        switch key {
-        case "display": flags.display.toggle()
-        case "system": flags.system.toggle()
-        case "disk": flags.disk.toggle()
-        default: break
-        }
-        preferences.sleepFlags = flags
-        // If a session is active, restart it so the new flags take effect now.
-        let state = controller.status()
-        if state.active {
-            let remaining = state.remaining().map { Int($0) }
-            do { try controller.start(duration: remaining, flags: flags) } catch { logError(error) }
-        }
+        flags[keyPath: SleepFlags.toggles[sender.tag].keyPath].toggle()
+        // The engine persists the flags and restarts a live session for us.
+        do { try controller.applyFlags(flags) } catch { logError(error) }
         refresh()
     }
 

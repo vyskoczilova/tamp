@@ -36,17 +36,24 @@ public final class CaffeinateController {
         process.standardError = FileHandle.nullDevice
         try process.run()
 
-        let now = Date()
         let state = CoffeeState(
             active: true,
             pid: process.processIdentifier,
-            mode: seconds == nil ? .indefinite : .timed,
-            startedAt: now,
-            endsAt: seconds.map { now.addingTimeInterval(TimeInterval($0)) },
+            endsAt: seconds.map { Date().addingTimeInterval(TimeInterval($0)) },
             flags: effectiveFlags
         )
         store.save(state)
         return state
+    }
+
+    /// Persist new sleep preferences. If a session is live, restart it so the
+    /// flags take effect immediately while preserving any remaining time.
+    @discardableResult
+    public func applyFlags(_ flags: SleepFlags) throws -> CoffeeState {
+        preferences.sleepFlags = flags
+        let current = status()
+        guard current.active else { return current }
+        return try start(duration: current.remaining().map { Int($0) }, flags: flags)
     }
 
     /// Stop any running session. Safe to call when already inactive.

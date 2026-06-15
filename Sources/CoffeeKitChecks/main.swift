@@ -60,15 +60,13 @@ let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
 let store = StateStore(url: tmp)
 let endsAt = Date(timeIntervalSince1970: 1_800_000_000)
 store.save(CoffeeState(
-    active: true, pid: 4242, mode: .timed,
-    startedAt: Date(timeIntervalSince1970: 1_799_990_000),
+    active: true, pid: 4242,
     endsAt: endsAt,
     flags: SleepFlags(display: true, system: false, disk: true)
 ))
 let loaded = store.loadRaw()
 check(loaded.active == true, "round-trip active")
 check(loaded.pid == 4242, "round-trip pid")
-check(loaded.mode == .timed, "round-trip mode")
 check(loaded.endsAt == endsAt, "round-trip endsAt")
 check(loaded.flags == SleepFlags(display: true, system: false, disk: true), "round-trip flags")
 try? FileManager.default.removeItem(at: tmp)
@@ -79,9 +77,17 @@ check(missing.loadRaw().active == false, "missing file → inactive")
 
 print("CoffeeState")
 let nowState = Date()
-let timed = CoffeeState(active: true, mode: .timed, endsAt: nowState.addingTimeInterval(600))
+let timed = CoffeeState(active: true, endsAt: nowState.addingTimeInterval(600))
 check(timed.remaining(now: nowState).map { abs($0 - 600) < 1 } == true, "remaining ≈ 600")
 check(CoffeeState.inactive().remaining() == nil, "inactive → nil remaining")
+
+if case .onTimed(let r) = timed.phase(now: nowState) {
+    check(abs(r - 600) < 1, "phase onTimed ≈ 600")
+} else {
+    check(false, "phase should be onTimed")
+}
+check(CoffeeState.inactive().phase() == .off, "inactive → phase off")
+check(CoffeeState(active: true).phase() == .onIndefinite, "active, no endsAt → phase onIndefinite")
 
 print("")
 if failures == 0 {

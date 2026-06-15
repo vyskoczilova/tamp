@@ -140,9 +140,12 @@ struct Icon: ParsableCommand {
 
 /// Render a state as a one-line human summary.
 func describe(_ state: CoffeeState) -> String {
-    guard state.active else { return "☕️ Off — your Mac can sleep normally." }
-    if let remaining = state.remaining() {
+    switch state.phase() {
+    case .off:
+        return "☕️ Off — your Mac can sleep normally."
+    case .onTimed(let remaining):
         return "☕️ On — \(DurationParser.format(remaining: remaining)) left."
+    case .onIndefinite:
+        return "☕️ On — staying awake until turned off."
     }
-    return "☕️ On — staying awake until turned off."
 }

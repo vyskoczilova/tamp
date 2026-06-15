@@ -18,17 +18,6 @@ enum LoginItem {
         SMAppService.mainApp.status == .enabled
     }
 
-    /// A short, human-readable description of the current registration status.
-    static var statusDescription: String {
-        switch SMAppService.mainApp.status {
-        case .enabled: return "enabled"
-        case .requiresApproval: return "needs approval in System Settings → General → Login Items"
-        case .notRegistered: return "not enabled"
-        case .notFound: return "not found"
-        @unknown default: return "unknown"
-        }
-    }
-
     /// Register or unregister the app as a login item.
     /// Throws if the system rejects the change (e.g. when not bundled).
     static func setEnabled(_ enabled: Bool) throws {

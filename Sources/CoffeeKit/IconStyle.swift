@@ -51,15 +51,4 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
             return "cup.and.heat.waves.fill"
         }
     }
-
-    /// Whether this style relies on a bundled custom template image
-    /// rather than an SF Symbol. Custom assets live in `assets/`.
-    public var usesCustomAsset: Bool {
-        switch self {
-        case .pourOver, .espresso, .frenchPress, .kettle:
-            return true
-        default:
-            return false
-        }
-    }
 }
