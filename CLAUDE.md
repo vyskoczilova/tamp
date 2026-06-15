@@ -47,7 +47,7 @@ PID stored in our state file, never all `caffeinate` processes.
 Sources/
 ├── CoffeeKit/        shared engine library (the only place with real logic)
 │   ├── CaffeinateController.swift  spawn/kill tracked caffeinate; reconcile state
-│   ├── CoffeeState.swift           Codable state model (active/pid/mode/ends/flags)
+│   ├── CoffeeState.swift           Codable state model (active/pid/endsAt/flags) + Phase
 │   ├── StateStore.swift            read/write the shared state JSON (NSFileCoordinator)
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
 │   ├── Duration.swift              parse "1h30m"/"90s"/bare-minutes and "until HH:MM"
@@ -67,7 +67,7 @@ it from both front-ends so they never drift.
 ### How the two products stay in sync
 
 - Shared state file: `~/Library/Application Support/Coffee/state.json`
-  (`{ active, pid, mode, startedAt, endsAt, flags }`).
+  (`{ active, pid, endsAt, flags }`).
 - Shared preferences: `UserDefaults(suiteName: "cz.kybernaut.coffee")`.
 - Whoever acts spawns a detached `caffeinate` and records its PID; stopping kills
   exactly that PID. `CoffeeBar` watches the state file via `DispatchSource` and
