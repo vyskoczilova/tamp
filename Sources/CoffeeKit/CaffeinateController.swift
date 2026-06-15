@@ -1,0 +1,91 @@
+import Foundation
+
+/// The engine. Wraps `/usr/bin/caffeinate`, owns the shared state, and keeps it
+/// reconciled with reality (a recorded PID that no longer exists means inactive).
+public final class CaffeinateController {
+    public static let caffeinatePath = "/usr/bin/caffeinate"
+
+    private let store: StateStore
+    private let preferences: Preferences
+
+    public init(store: StateStore = StateStore(), preferences: Preferences = Preferences()) {
+        self.store = store
+        self.preferences = preferences
+    }
+
+    /// Current state, reconciled against the running process.
+    public func status() -> CoffeeState {
+        reconcile(store.loadRaw())
+    }
+
+    /// Start caffeination. `duration` nil means indefinite; otherwise timed.
+    /// `flags` overrides the saved preferences for this session when provided.
+    @discardableResult
+    public func start(duration seconds: Int? = nil, flags: SleepFlags? = nil) throws -> CoffeeState {
+        stop() // Replace any existing session.
+
+        let effectiveFlags = flags ?? preferences.sleepFlags
+        var args = effectiveFlags.caffeinateArguments
+        if args.isEmpty { args.append("-i") } // Never launch a no-op caffeinate.
+        if let seconds { args.append(contentsOf: ["-t", String(seconds)]) }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: Self.caffeinatePath)
+        process.arguments = args
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+
+        let now = Date()
+        let state = CoffeeState(
+            active: true,
+            pid: process.processIdentifier,
+            mode: seconds == nil ? .indefinite : .timed,
+            startedAt: now,
+            endsAt: seconds.map { now.addingTimeInterval(TimeInterval($0)) },
+            flags: effectiveFlags
+        )
+        store.save(state)
+        return state
+    }
+
+    /// Stop any running session. Safe to call when already inactive.
+    @discardableResult
+    public func stop() -> CoffeeState {
+        let current = store.loadRaw()
+        if let pid = current.pid, processIsAlive(pid) {
+            kill(pid, SIGTERM)
+        }
+        let inactive = CoffeeState.inactive(flags: current.flags)
+        store.save(inactive)
+        return inactive
+    }
+
+    /// Toggle on (indefinite) or off based on current state.
+    @discardableResult
+    public func toggle() throws -> CoffeeState {
+        if status().active {
+            return stop()
+        }
+        return try start()
+    }
+
+    // MARK: - Reconciliation
+
+    /// If the recorded process is gone (manual kill or timer elapsed), correct
+    /// the persisted state to inactive.
+    private func reconcile(_ state: CoffeeState) -> CoffeeState {
+        guard state.active, let pid = state.pid else { return state }
+        if processIsAlive(pid) {
+            return state
+        }
+        let corrected = CoffeeState.inactive(flags: state.flags)
+        store.save(corrected)
+        return corrected
+    }
+
+    private func processIsAlive(_ pid: Int32) -> Bool {
+        // Signal 0 performs error checking without sending a signal.
+        kill(pid, 0) == 0 || errno == EPERM
+    }
+}

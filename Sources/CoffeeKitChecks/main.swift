@@ -1,0 +1,92 @@
+import Foundation
+import CoffeeKit
+
+// Minimal assertion harness (no XCTest/Swift Testing available without Xcode).
+var failures = 0
+@MainActor func check(_ condition: Bool, _ message: String) {
+    if condition {
+        print("  ok: \(message)")
+    } else {
+        failures += 1
+        print("  FAIL: \(message)")
+    }
+}
+@MainActor func checkThrows(_ message: String, _ body: () throws -> Void) {
+    do {
+        try body()
+        failures += 1
+        print("  FAIL: \(message) (expected throw)")
+    } catch {
+        print("  ok: \(message)")
+    }
+}
+
+print("DurationParser")
+check((try? DurationParser.seconds(from: "30m")) == 1800, "30m → 1800")
+check((try? DurationParser.seconds(from: "1h")) == 3600, "1h → 3600")
+check((try? DurationParser.seconds(from: "1h30m")) == 5400, "1h30m → 5400")
+check((try? DurationParser.seconds(from: "90s")) == 90, "90s → 90")
+check((try? DurationParser.seconds(from: "2h15m30s")) == 8130, "2h15m30s → 8130")
+check((try? DurationParser.seconds(from: "90")) == 5400, "bare 90 → 90 minutes")
+checkThrows("empty string throws") { _ = try DurationParser.seconds(from: "") }
+checkThrows("abc throws") { _ = try DurationParser.seconds(from: "abc") }
+checkThrows("1h30 (trailing digits) throws") { _ = try DurationParser.seconds(from: "1h30") }
+checkThrows("0m throws") { _ = try DurationParser.seconds(from: "0m") }
+
+var cal = Calendar(identifier: .gregorian)
+cal.timeZone = TimeZone(identifier: "UTC")!
+let now = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 10, minute: 0))!
+check((try? DurationParser.secondsUntil(time: "12:30", now: now, calendar: cal)) == 2 * 3600 + 30 * 60,
+      "until 12:30 from 10:00 → 2h30m")
+check((try? DurationParser.secondsUntil(time: "09:00", now: now, calendar: cal)) == 23 * 3600,
+      "until 09:00 (past) rolls to tomorrow → 23h")
+
+check(DurationParser.format(remaining: 4020) == "1h 7m", "format 4020 → 1h 7m")
+check(DurationParser.format(remaining: 2700) == "45m", "format 2700 → 45m")
+check(DurationParser.format(remaining: 30) == "30s", "format 30 → 30s")
+check(DurationParser.format(remaining: 3600) == "1h", "format 3600 → 1h")
+
+print("SleepFlags")
+check(SleepFlags(display: true, system: true, disk: false).caffeinateArguments == ["-d", "-i"],
+      "display+system → -d -i")
+check(SleepFlags(display: false, system: true, disk: true).caffeinateArguments == ["-i", "-m"],
+      "system+disk → -i -m")
+check(SleepFlags(display: false, system: false, disk: false).caffeinateArguments == [],
+      "none → []")
+
+print("StateStore")
+let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("coffee-test-\(UUID().uuidString).json")
+let store = StateStore(url: tmp)
+let endsAt = Date(timeIntervalSince1970: 1_800_000_000)
+store.save(CoffeeState(
+    active: true, pid: 4242, mode: .timed,
+    startedAt: Date(timeIntervalSince1970: 1_799_990_000),
+    endsAt: endsAt,
+    flags: SleepFlags(display: true, system: false, disk: true)
+))
+let loaded = store.loadRaw()
+check(loaded.active == true, "round-trip active")
+check(loaded.pid == 4242, "round-trip pid")
+check(loaded.mode == .timed, "round-trip mode")
+check(loaded.endsAt == endsAt, "round-trip endsAt")
+check(loaded.flags == SleepFlags(display: true, system: false, disk: true), "round-trip flags")
+try? FileManager.default.removeItem(at: tmp)
+
+let missing = StateStore(url: URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("coffee-missing-\(UUID().uuidString).json"))
+check(missing.loadRaw().active == false, "missing file → inactive")
+
+print("CoffeeState")
+let nowState = Date()
+let timed = CoffeeState(active: true, mode: .timed, endsAt: nowState.addingTimeInterval(600))
+check(timed.remaining(now: nowState).map { abs($0 - 600) < 1 } == true, "remaining ≈ 600")
+check(CoffeeState.inactive().remaining() == nil, "inactive → nil remaining")
+
+print("")
+if failures == 0 {
+    print("All checks passed.")
+} else {
+    print("\(failures) check(s) FAILED.")
+    exit(1)
+}
