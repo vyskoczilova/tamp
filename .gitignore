@@ -4,3 +4,6 @@
 DerivedData/
 .DS_Store
 build/
+
+# Scratch / scratchpad for icon assets, render previews
+tmp/
