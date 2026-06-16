@@ -17,6 +17,9 @@ for arg in "$@"; do
 done
 
 APP_NAME="Coffee"
+# The SwiftPM target is "CoffeeBar", but the binary is installed under this name
+# (see the cp below) so the running process and the bundle share one identity.
+EXE_NAME="Coffee"
 BUNDLE_ID="cz.kybernaut.coffee"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION_ARG:-$(cat "$ROOT/VERSION" 2>/dev/null || echo "0.0.0")}"
@@ -30,12 +33,12 @@ BIN="$ROOT/.build/release/CoffeeBar"
 echo "==> Assembling $APP …"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-# Install the binary as "Coffee" so the running process and the bundle share one
-# identity. (The SwiftPM target stays "CoffeeBar" — it can't be renamed to
+# Install the binary as $EXE_NAME so the running process and the bundle share
+# one identity. (The SwiftPM target stays "CoffeeBar" — it can't be renamed to
 # "Coffee" because the filesystem is case-insensitive and the `coffee` CLI would
 # collide.) The menu-bar / login-item identity comes from the bundle, not the
 # target name, so this rename-on-copy is all it takes.
-cp "$BIN" "$APP/Contents/MacOS/Coffee"
+cp "$BIN" "$APP/Contents/MacOS/$EXE_NAME"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -45,7 +48,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleName</key><string>${APP_NAME}</string>
     <key>CFBundleDisplayName</key><string>${APP_NAME}</string>
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
-    <key>CFBundleExecutable</key><string>Coffee</string>
+    <key>CFBundleExecutable</key><string>${EXE_NAME}</string>
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -64,8 +67,8 @@ codesign -dvv "$APP" 2>&1 | sed -n '1,4p' || true
 
 if $INSTALL; then
     echo "==> Quitting running Coffee.app…"
-    # New bundles run as "Coffee"; "CoffeeBar" covers older installs and bare runs.
-    pkill -x Coffee 2>/dev/null || true
+    # New bundles run as $EXE_NAME; "CoffeeBar" covers older installs and bare runs.
+    pkill -x "$EXE_NAME" 2>/dev/null || true
     pkill -x CoffeeBar 2>/dev/null || true
     sleep 1
 

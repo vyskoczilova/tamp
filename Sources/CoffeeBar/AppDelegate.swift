@@ -187,13 +187,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func toggleTapped() {
-        do { try controller.toggle() } catch { logError(error) }
+        do { try controller.toggle() } catch { logCoffeeError("caffeinate action failed", error) }
         refresh()
     }
 
     @objc private func durationTapped(_ sender: NSMenuItem) {
         let preset = durationPresets[sender.tag]
-        do { try controller.start(duration: preset.seconds) } catch { logError(error) }
+        do { try controller.start(duration: preset.seconds) } catch { logCoffeeError("caffeinate action failed", error) }
         refresh()
     }
 
@@ -215,10 +215,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func quitTapped() {
         NSApp.terminate(nil)
-    }
-
-    private func logError(_ error: Error) {
-        NSLog("Coffee: caffeinate action failed — %@", String(describing: error))
     }
 
     // MARK: - State file watching

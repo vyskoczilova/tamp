@@ -67,9 +67,10 @@ final class SettingsWindowController: NSWindowController {
         iconPopUp = NSPopUpButton(frame: .zero, pullsDown: false)
         iconPopUp.target = self
         iconPopUp.action = #selector(iconChanged)
+        // Item order matches IconStyle.allCases, so selection maps by index
+        // (see syncControls / iconChanged) — no per-item representedObject needed.
         for style in IconStyle.allCases {
             iconPopUp.addItem(withTitle: style.label)
-            iconPopUp.lastItem?.representedObject = style.rawValue
         }
         stack.addArrangedSubview(iconPopUp)
 
@@ -134,14 +135,14 @@ final class SettingsWindowController: NSWindowController {
         var flags = preferences.sleepFlags
         flags[keyPath: SleepFlags.toggles[index].keyPath] = sender.state == .on
         // The engine persists the flags and restarts a live session for us.
-        do { try controller.applyFlags(flags) } catch { logError(error) }
+        do { try controller.applyFlags(flags) } catch { logCoffeeError("settings action failed", error) }
         onChange()
     }
 
     @objc private func iconChanged() {
-        if let raw = iconPopUp.selectedItem?.representedObject as? String,
-           let style = IconStyle(rawValue: raw) {
-            preferences.iconStyle = style
+        let index = iconPopUp.indexOfSelectedItem
+        if IconStyle.allCases.indices.contains(index) {
+            preferences.iconStyle = IconStyle.allCases[index]
         }
         onChange()
     }
@@ -150,13 +151,9 @@ final class SettingsWindowController: NSWindowController {
         do {
             try LoginItem.setEnabled(loginCheck.state == .on)
         } catch {
-            logError(error)
+            logCoffeeError("settings action failed", error)
             syncControls()
         }
         onChange()
-    }
-
-    private func logError(_ error: Error) {
-        NSLog("Coffee: settings action failed — %@", String(describing: error))
     }
 }
