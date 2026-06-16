@@ -40,6 +40,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # target name, so this rename-on-copy is all it takes.
 cp "$BIN" "$APP/Contents/MacOS/$EXE_NAME"
 
+# Ship the SwiftPM resource bundle (custom icon SVGs) so Bundle.module resolves
+# inside the packaged app — it looks for the bundle in Contents/Resources.
+cp -R "$ROOT"/.build/release/*_CoffeeBar.bundle "$APP/Contents/Resources/" 2>/dev/null || true
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

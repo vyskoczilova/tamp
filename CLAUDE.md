@@ -95,7 +95,9 @@ it from both front-ends so they never drift.
   returned so both front-ends can display "caffeinated by another app".
   Coffee never kills or manages external processes.
   **Icon rule:** filled = any caffeinate active (`.onIndefinite`, `.onTimed`,
-  `.externallyActive`); outline = nothing running (`.off` only).
+  `.externallyActive`); outline = nothing running (`.off` only). For custom-art
+  styles (no filled/outline pair) the inactive state is the same silhouette drawn
+  dimmed.
 
 ### Sleep flags → `caffeinate`
 
@@ -113,7 +115,10 @@ on, disk off. A session never launches a no-op `caffeinate` (falls back to `-i`)
   names in both `inactiveSymbol` and `activeSymbol`. To check whether a symbol
   name exists on this machine:
   `swift -e 'import AppKit; print(NSImage(systemSymbolName: "name", accessibilityDescription: nil) != nil)'`
-  Shipping custom artwork means adding template assets and wiring them in `IconStyle`.
+  Custom-art styles instead drop a single-color SVG into `Sources/CoffeeBar/Icons/`
+  and point `IconStyle.customAssetName` at its basename. `IconRenderer` (CoffeeBar)
+  loads it via `Bundle.module` as a template image and dims it for the inactive
+  state; `make-app.sh` copies the generated `Coffee_CoffeeBar.bundle` into the app.
 - Keep `coffee` and `CoffeeBar` symmetric: any capability one exposes, the other
   should be able to reach through `CoffeeKit`.
 

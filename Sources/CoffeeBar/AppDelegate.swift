@@ -55,14 +55,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func updateIcon(phase: CoffeeState.Phase) {
-        let style = preferences.iconStyle
         let isActive = phase != .off
-        let symbol = isActive ? style.activeSymbol : style.inactiveSymbol
-        let description = isActive ? "Caffeinated" : "Decaffeinated"
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: description)
-            ?? NSImage(systemSymbolName: "cup.and.saucer", accessibilityDescription: description)
-        image?.isTemplate = true
-        statusItem.button?.image = image
+        statusItem.button?.image = IconRenderer.image(
+            for: preferences.iconStyle, active: isActive, pointSize: 18
+        )
     }
 
     /// Schedule a background poll whenever the icon can change without a file-

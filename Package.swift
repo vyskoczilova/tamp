@@ -23,7 +23,8 @@ let package = Package(
         ),
         .executableTarget(
             name: "CoffeeBar",
-            dependencies: ["CoffeeKit"]
+            dependencies: ["CoffeeKit"],
+            resources: [.copy("Icons")]
         ),
         // Standalone test runner: XCTest/Swift Testing need full Xcode, which
         // isn't present here, so checks run as a plain executable. `swift run

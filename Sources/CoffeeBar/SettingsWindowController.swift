@@ -151,13 +151,9 @@ final class SettingsWindowController: NSWindowController {
             ?? "© 2026 Karolína Vyskočilová"
     }
 
-    /// A template image of the style's active (caffeinated) symbol for preview.
+    /// A template image of the style's active artwork for the preview.
     private func iconImage(for style: IconStyle) -> NSImage? {
-        let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
-        let image = NSImage(systemSymbolName: style.activeSymbol, accessibilityDescription: style.label)
-            ?? NSImage(systemSymbolName: "cup.and.saucer", accessibilityDescription: style.label)
-        image?.isTemplate = true
-        return image?.withSymbolConfiguration(config)
+        IconRenderer.image(for: style, active: true, pointSize: 18)
     }
 
     // MARK: - Sync

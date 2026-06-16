@@ -1,9 +1,5 @@
 ## UX / menu
 
-[ ] brewing-concept icon styles (pourOver, espresso, frenchPress, kettle) all
-    fall back to cup.and.saucer SF Symbol — visually identical to "Cup".
-    Fix: find distinct SF Symbols per style, or add custom template image assets.
-
 ## Features
 
 [ ] "While app runs" — coffee while Xcode — keeps Mac awake as long as a named
@@ -13,7 +9,6 @@
 
 ## Distribution
 
-[ ] Custom artwork for brewing-concept icon styles (currently SF Symbol fallbacks).
 [ ] Developer ID signing + notarization (currently ad-hoc, fine for personal use).
 [ ] Homebrew cask.
 
@@ -31,3 +26,5 @@
 [x] Settings panel (NSPanel) — sleep flags, icon style, launch-at-login moved
     out of the menu
 [x] About panel — system About box with version + copyright (NSHumanReadableCopyright)
+[x] Custom brewing-concept icons (Pour-Over, French Press, Tamper, Chemex) from
+    bundled SVG template artwork via IconRenderer + Bundle.module
