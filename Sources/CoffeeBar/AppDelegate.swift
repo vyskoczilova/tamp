@@ -64,15 +64,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.button?.image = image
     }
 
-    /// Only a *timed* session changes state on its own — it expires without
-    /// writing the state file, so the file watcher never fires for it. Poll
-    /// while one is live (to flip the icon when it ends) and stop otherwise.
+    /// Schedule a background poll whenever the icon can change without a file-
+    /// system event: timed sessions (expiry) and Coffee-inactive periods
+    /// (external caffeinate start/stop). Uses a short interval when inactive so
+    /// the icon tracks external processes in near-real-time.
     private func rescheduleExpiryPoll(for state: CoffeeState) {
-        let shouldPoll = state.active && state.endsAt != nil
-        if shouldPoll {
-            if refreshTimer == nil {
+        let interval: TimeInterval? =
+            state.active && state.endsAt != nil ? 30 :   // timed session expiry
+            !state.active                       ? 5  :   // external caffeinate detection
+            nil                                           // indefinite own session — no poll needed
+        if let interval {
+            if refreshTimer == nil || refreshTimer?.timeInterval != interval {
+                refreshTimer?.invalidate()
                 refreshTimer = Timer.scheduledTimer(
-                    timeInterval: 30, target: self, selector: #selector(refreshTick),
+                    timeInterval: interval, target: self, selector: #selector(refreshTick),
                     userInfo: nil, repeats: true
                 )
             }
