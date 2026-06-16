@@ -1,17 +1,29 @@
 #!/usr/bin/env bash
 # Build CoffeeBar and assemble it into a real Coffee.app bundle.
-# Usage: Scripts/make-app.sh [version]   (version defaults to 1.0.0)
+#
+# Usage:
+#   Scripts/make-app.sh                   # build only → build/Coffee.app
+#   Scripts/make-app.sh --install         # build + quit old + install to /Applications/ + relaunch
+#   Scripts/make-app.sh --install 0.3.0   # same, with an explicit version override
 set -euo pipefail
 
-VERSION="${1:-1.0.0}"
+INSTALL=false
+VERSION_ARG=""
+for arg in "$@"; do
+    case "$arg" in
+        --install|-i) INSTALL=true ;;
+        *) VERSION_ARG="$arg" ;;
+    esac
+done
+
 APP_NAME="Coffee"
 BUNDLE_ID="cz.kybernaut.coffee"
-
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+VERSION="${VERSION_ARG:-$(cat "$ROOT/VERSION" 2>/dev/null || echo "0.0.0")}"
 BUILD_DIR="$ROOT/build"
 APP="$BUILD_DIR/$APP_NAME.app"
 
-echo "==> Building release binary…"
+echo "==> Building release binary… (v${VERSION})"
 swift build -c release --package-path "$ROOT"
 BIN="$ROOT/.build/release/CoffeeBar"
 
@@ -39,18 +51,32 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-echo "==> Ad-hoc code signing… (helps SMAppService and Gatekeeper for local use)"
+echo "==> Ad-hoc code signing…"
 codesign --force --sign - --identifier "$BUNDLE_ID" "$APP"
 
 echo "==> Done: $APP"
 codesign -dvv "$APP" 2>&1 | sed -n '1,4p' || true
 
-cat <<NEXT
+if $INSTALL; then
+    echo "==> Quitting running Coffee.app…"
+    pkill -x CoffeeBar 2>/dev/null || true
+    sleep 1
+
+    echo "==> Installing to /Applications/…"
+    rm -rf /Applications/Coffee.app
+    cp -r "$APP" /Applications/Coffee.app
+
+    echo "==> Launching /Applications/Coffee.app…"
+    open /Applications/Coffee.app
+    echo "==> Done — Coffee ${VERSION} is running from /Applications/"
+else
+    cat <<NEXT
 
 Next steps:
-  • Move into Applications:  mv "$APP" /Applications/
-  • Launch it:               open /Applications/${APP_NAME}.app
-  • Enable launch-at-login:  click the menu bar icon → "Launch at Login"
-                             (works from the .app; move to /Applications first
-                              so the login registration points at a stable path)
+  • Install:   Scripts/make-app.sh --install
+    (quits old instance, replaces /Applications/Coffee.app, relaunches)
+  • Or manually:
+      mv "$APP" /Applications/   # only works if Coffee.app isn't there yet
+      open /Applications/${APP_NAME}.app
 NEXT
+fi

@@ -10,6 +10,7 @@ struct Coffee: ParsableCommand {
         Keep your Mac awake. Karolína Vyskočilová's wrapper around the native \
         macOS caffeinate command, inspired by the Raycast Coffee extension.
         """,
+        version: appVersion,
         subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Status.self, Icon.self],
         defaultSubcommand: Status.self
     )
