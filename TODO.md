@@ -1,11 +1,3 @@
-## Think about
-
-### Can you run both Homebrew Cask and App Store?
-
-Yes, plenty of apps do (free direct/Homebrew build + paid App Store build). But for this app there's a sharp catch you need to know before you name anything:
-
-The App Store requires sandboxing, and your current engine can't be sandboxed. Coffee works by spawning /usr/bin/caffeinate as a detached subprocess, recording its PID, and using pgrep to detect external caffeinate. A sandboxed app cannot spawnt arbitrary executables or run pgrep. So an App Store build would require rewriting CaffeinateController to use the IOKit power-assertion API (IOPMAssertionCreateWithName) instead of wrapping caffeinate. That's exactly how Amphetamine (the dominant free App Store competitor) does it.
-
 ## UX / menu
 
 [ ] brewing-concept icon styles (pourOver, espresso, frenchPress, kettle) all

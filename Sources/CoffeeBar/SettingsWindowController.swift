@@ -56,6 +56,7 @@ final class SettingsWindowController: NSWindowController {
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 20, bottom: 16, right: 20)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
+        stack.addArrangedSubview(header("General"))
         loginCheck = checkbox(title: "Launch at Login", action: #selector(loginToggled))
         stack.addArrangedSubview(loginCheck)
         stack.addArrangedSubview(spacer())
