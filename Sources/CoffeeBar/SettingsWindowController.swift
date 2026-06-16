@@ -14,6 +14,7 @@ final class SettingsWindowController: NSWindowController {
 
     private var sleepChecks: [NSButton] = []
     private var iconPopUp: NSPopUpButton!
+    private var iconPreview: NSImageView!
     private var loginCheck: NSButton!
 
     init(preferences: Preferences, controller: CaffeinateController, onChange: @escaping () -> Void) {
@@ -22,7 +23,7 @@ final class SettingsWindowController: NSWindowController {
         self.onChange = onChange
 
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 0),
+            contentRect: NSRect(x: 0, y: 0, width: 360, height: 0),
             styleMask: [.titled, .closable, .utilityWindow],
             backing: .buffered,
             defer: false
@@ -55,11 +56,16 @@ final class SettingsWindowController: NSWindowController {
         stack.edgeInsets = NSEdgeInsets(top: 16, left: 20, bottom: 16, right: 20)
         stack.translatesAutoresizingMaskIntoConstraints = false
 
+        loginCheck = checkbox(title: "Launch at Login", action: #selector(loginToggled))
+        stack.addArrangedSubview(loginCheck)
+        stack.addArrangedSubview(spacer())
+
         stack.addArrangedSubview(header("Prevent Sleep Of"))
         for toggle in SleepFlags.toggles {
-            let check = checkbox(title: toggle.label, action: #selector(sleepFlagTapped(_:)))
+            let (row, check) = flagRow(title: toggle.label, detail: toggle.detail,
+                                       action: #selector(sleepFlagTapped(_:)))
             sleepChecks.append(check)
-            stack.addArrangedSubview(check)
+            stack.addArrangedSubview(row)
         }
 
         stack.addArrangedSubview(spacer())
@@ -72,11 +78,21 @@ final class SettingsWindowController: NSWindowController {
         for style in IconStyle.allCases {
             iconPopUp.addItem(withTitle: style.label)
         }
-        stack.addArrangedSubview(iconPopUp)
+        iconPreview = NSImageView()
+        iconPreview.contentTintColor = .labelColor
+        iconPreview.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        iconPreview.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        let iconRow = NSStackView(views: [iconPopUp, iconPreview])
+        iconRow.orientation = .horizontal
+        iconRow.spacing = 10
+        stack.addArrangedSubview(iconRow)
 
         stack.addArrangedSubview(spacer())
-        loginCheck = checkbox(title: "Launch at Login", action: #selector(loginToggled))
-        stack.addArrangedSubview(loginCheck)
+        let divider = NSBox()
+        divider.boxType = .separator
+        divider.widthAnchor.constraint(equalToConstant: 320).isActive = true
+        stack.addArrangedSubview(divider)
+        stack.addArrangedSubview(footer(copyrightText()))
 
         let container = NSView()
         container.addSubview(stack)
@@ -101,10 +117,46 @@ final class SettingsWindowController: NSWindowController {
         return button
     }
 
+    /// A checkbox with a dim one-line description beneath it.
+    private func flagRow(title: String, detail: String, action: Selector) -> (row: NSView, checkbox: NSButton) {
+        let check = checkbox(title: title, action: action)
+        let detailLabel = NSTextField(labelWithString: detail)
+        detailLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        detailLabel.textColor = .secondaryLabelColor
+        let column = NSStackView(views: [check, detailLabel])
+        column.orientation = .vertical
+        column.alignment = .leading
+        column.spacing = 1
+        return (column, check)
+    }
+
+    private func footer(_ text: String) -> NSTextField {
+        let label = NSTextField(labelWithString: text)
+        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        label.textColor = .tertiaryLabelColor
+        return label
+    }
+
     private func spacer() -> NSView {
         let view = NSView()
         view.heightAnchor.constraint(equalToConstant: 4).isActive = true
         return view
+    }
+
+    /// The copyright string the bundle advertises (set by make-app.sh), falling
+    /// back to a literal when running the bare binary (no Info.plist).
+    private func copyrightText() -> String {
+        Bundle.main.object(forInfoDictionaryKey: "NSHumanReadableCopyright") as? String
+            ?? "© 2026 Karolína Vyskočilová"
+    }
+
+    /// A template image of the style's active (caffeinated) symbol for preview.
+    private func iconImage(for style: IconStyle) -> NSImage? {
+        let config = NSImage.SymbolConfiguration(pointSize: 18, weight: .regular)
+        let image = NSImage(systemSymbolName: style.activeSymbol, accessibilityDescription: style.label)
+            ?? NSImage(systemSymbolName: "cup.and.saucer", accessibilityDescription: style.label)
+        image?.isTemplate = true
+        return image?.withSymbolConfiguration(config)
     }
 
     // MARK: - Sync
@@ -117,6 +169,7 @@ final class SettingsWindowController: NSWindowController {
         }
         let current = preferences.iconStyle
         iconPopUp.selectItem(at: IconStyle.allCases.firstIndex(of: current) ?? 0)
+        iconPreview.image = iconImage(for: current)
         if LoginItem.isBundledApp {
             loginCheck.isEnabled = true
             loginCheck.state = LoginItem.isEnabled ? .on : .off
@@ -142,7 +195,9 @@ final class SettingsWindowController: NSWindowController {
     @objc private func iconChanged() {
         let index = iconPopUp.indexOfSelectedItem
         if IconStyle.allCases.indices.contains(index) {
-            preferences.iconStyle = IconStyle.allCases[index]
+            let style = IconStyle.allCases[index]
+            preferences.iconStyle = style
+            iconPreview.image = iconImage(for: style)
         }
         onChange()
     }

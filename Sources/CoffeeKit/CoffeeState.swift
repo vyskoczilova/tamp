@@ -24,13 +24,14 @@ public struct SleepFlags: Codable, Equatable, Sendable {
         return args
     }
 
-    /// The individual sleep types with display labels — the single source for
-    /// UIs that present a per-type toggle (e.g. the menu's "Prevent Sleep Of").
-    public static var toggles: [(label: String, keyPath: WritableKeyPath<SleepFlags, Bool>)] {
+    /// The individual sleep types with display labels and a short description —
+    /// the single source for UIs that present a per-type toggle (e.g. the
+    /// settings panel's "Prevent Sleep Of").
+    public static var toggles: [(label: String, detail: String, keyPath: WritableKeyPath<SleepFlags, Bool>)] {
         [
-            ("Display", \.display),
-            ("System", \.system),
-            ("Disk", \.disk),
+            ("Display", "Keep the screen awake", \.display),
+            ("System", "Keep the Mac awake, even when idle", \.system),
+            ("Disk", "Keep disks from spinning down", \.disk),
         ]
     }
 }
