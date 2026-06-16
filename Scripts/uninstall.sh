@@ -40,10 +40,16 @@ if [[ -f "$STATE_FILE" ]]; then
 fi
 
 # 2. Unregister the login item. SMAppService.mainApp is bundle-scoped, so this
-#    must run from the installed bundle's own binary (see main.swift).
-if [[ -x "$APP/Contents/MacOS/Coffee" ]]; then
-    echo "==> Unregistering login item…"
-    "$APP/Contents/MacOS/Coffee" --unregister-login || true
+#    must run from the installed bundle's own binary (see main.swift). Resolve
+#    the executable from the bundle rather than assuming its name — older
+#    installs shipped it as "CoffeeBar", newer ones as "Coffee".
+if [[ -d "$APP" ]]; then
+    EXE="$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$APP/Contents/Info.plist" 2>/dev/null || true)"
+    EXE_PATH="$APP/Contents/MacOS/$EXE"
+    if [[ -n "$EXE" && -x "$EXE_PATH" ]]; then
+        echo "==> Unregistering login item…"
+        "$EXE_PATH" --unregister-login || true
+    fi
 fi
 
 # 3. Quit the menu bar app (new bundles run as "Coffee"; older ones "CoffeeBar").
@@ -53,7 +59,7 @@ pkill -x CoffeeBar 2>/dev/null || true
 sleep 1
 
 # 4. Remove the app bundle.
-echo "==> Removing $APP…"
+echo "==> Removing ${APP}…"
 rm -rf "$APP"
 
 # 5. Remove shared state and preferences.
