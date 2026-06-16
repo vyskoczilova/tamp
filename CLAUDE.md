@@ -16,14 +16,29 @@ swift build                 # debug build of all products
 swift build -c release      # release build → .build/release/{coffee,CoffeeBar}
 swift run CoffeeKitChecks   # run the test harness (exits non-zero on failure)
 .build/debug/coffee status  # run the CLI
-.build/debug/CoffeeBar &    # run the menu bar app (bare binary)
+.build/debug/CoffeeBar &    # run the menu bar app (bare binary — dev only)
 Scripts/make-app.sh         # package build/Coffee.app (ad-hoc signed bundle)
+Scripts/uninstall.sh        # remove the app, login item, state, and prefs
 ```
 
 **App bundle:** `Scripts/make-app.sh` assembles `build/Coffee.app` (writes the
 `Info.plist` with `LSUIElement`, bundle id `cz.kybernaut.coffee`, ad-hoc signs).
 Launch-at-login (`SMAppService`, see `LoginItem.swift`) only works from this
 bundle — the bare binary disables that menu toggle. `build/` is gitignored.
+
+**Bundle identity:** the SwiftPM target is `CoffeeBar`, but `make-app.sh`
+installs the binary into the bundle as `Contents/MacOS/Coffee` (and sets
+`CFBundleExecutable=Coffee`) so the running process and the bundle share one
+"Coffee" identity in the "Allow in the Menu Bar" list. The target itself can't
+be renamed to `Coffee` — the filesystem is case-insensitive and would collide
+with the `coffee` CLI. Avoid running the bare `.build/*/CoffeeBar` binaries
+except for quick dev checks: each distinct path you launch seeds its own stale
+menu-bar entry that macOS won't auto-remove.
+
+**Uninstall:** `Scripts/uninstall.sh` stops the tracked caffeinate, unregisters
+the login item (via `CoffeeBar --unregister-login`, a headless teardown hook in
+`main.swift` that must run from inside the bundle so `SMAppService.mainApp`
+resolves correctly), then deletes the app, state dir, and the prefs suite.
 
 **Tests:** there is no XCTest / Swift Testing target — this machine has Command
 Line Tools only (no full Xcode), so neither framework is importable. Tests live in

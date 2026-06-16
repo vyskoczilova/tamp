@@ -30,7 +30,12 @@ BIN="$ROOT/.build/release/CoffeeBar"
 echo "==> Assembling $APP …"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/CoffeeBar"
+# Install the binary as "Coffee" so the running process and the bundle share one
+# identity. (The SwiftPM target stays "CoffeeBar" — it can't be renamed to
+# "Coffee" because the filesystem is case-insensitive and the `coffee` CLI would
+# collide.) The menu-bar / login-item identity comes from the bundle, not the
+# target name, so this rename-on-copy is all it takes.
+cp "$BIN" "$APP/Contents/MacOS/Coffee"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -40,7 +45,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundleName</key><string>${APP_NAME}</string>
     <key>CFBundleDisplayName</key><string>${APP_NAME}</string>
     <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
-    <key>CFBundleExecutable</key><string>CoffeeBar</string>
+    <key>CFBundleExecutable</key><string>Coffee</string>
     <key>CFBundleVersion</key><string>${VERSION}</string>
     <key>CFBundleShortVersionString</key><string>${VERSION}</string>
     <key>CFBundlePackageType</key><string>APPL</string>
@@ -59,6 +64,8 @@ codesign -dvv "$APP" 2>&1 | sed -n '1,4p' || true
 
 if $INSTALL; then
     echo "==> Quitting running Coffee.app…"
+    # New bundles run as "Coffee"; "CoffeeBar" covers older installs and bare runs.
+    pkill -x Coffee 2>/dev/null || true
     pkill -x CoffeeBar 2>/dev/null || true
     sleep 1
 
