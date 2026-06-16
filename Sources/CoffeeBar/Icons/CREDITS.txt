@@ -2,9 +2,8 @@ Menu bar icon artwork — from The Noun Project (https://thenounproject.com).
 Noun Project icons are licensed CC BY 3.0; attribute the creator (or hold a
 Noun Project license) before distributing. Filenames keep the original noun IDs.
 
-  noun-7855462.svg              Pour-Over   (icon #7855462)
+  noun-full-chemex-2460094.svg  Chemex       (icon #2460094)
   noun-french-press-7820817.svg French Press (icon #7820817)
-  noun-tamper-7855393.svg       Tamper      (icon #7855393)
-  noun-chemex-2460093.svg       Chemex      (icon #2460093)
+  noun-tamper-8060658.svg       Tamper       (icon #8060658)
 
 Look up each ID at https://thenounproject.com/icon/<id>/ for the creator's name.
