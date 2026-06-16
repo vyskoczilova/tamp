@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var fileWatcher: DispatchSourceFileSystemObject?
     private var refreshTimer: Timer?
+    private var settingsWindowController: SettingsWindowController?
 
     private let durationPresets: [(label: String, seconds: Int)] = [
         ("30 minutes", 30 * 60),
@@ -107,9 +108,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(toggle)
 
         menu.addItem(durationSubmenu())
-        menu.addItem(iconSubmenu())
-        menu.addItem(preventSubmenu())
-        menu.addItem(loginItemMenuItem())
+
+        menu.addItem(.separator())
+        let settings = NSMenuItem(title: "Settings…", action: #selector(settingsTapped), keyEquivalent: ",")
+        settings.target = self
+        menu.addItem(settings)
+        let about = NSMenuItem(title: "About Coffee", action: #selector(aboutTapped), keyEquivalent: "")
+        about.target = self
+        menu.addItem(about)
 
         menu.addItem(.separator())
         let version = NSMenuItem(title: "Version \(appVersion)", action: nil, keyEquivalent: "")
@@ -178,48 +184,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func iconSubmenu() -> NSMenuItem {
-        let parent = NSMenuItem(title: "Icon Style", action: nil, keyEquivalent: "")
-        let submenu = NSMenu()
-        let current = preferences.iconStyle
-        for style in IconStyle.allCases {
-            let item = NSMenuItem(title: style.label, action: #selector(iconTapped(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = style.rawValue
-            item.state = style == current ? .on : .off
-            submenu.addItem(item)
-        }
-        parent.submenu = submenu
-        return parent
-    }
-
-    private func preventSubmenu() -> NSMenuItem {
-        let parent = NSMenuItem(title: "Prevent Sleep Of", action: nil, keyEquivalent: "")
-        let submenu = NSMenu()
-        let flags = preferences.sleepFlags
-        for (index, toggle) in SleepFlags.toggles.enumerated() {
-            let item = NSMenuItem(title: toggle.label, action: #selector(preventTapped(_:)), keyEquivalent: "")
-            item.target = self
-            item.tag = index
-            item.state = flags[keyPath: toggle.keyPath] ? .on : .off
-            submenu.addItem(item)
-        }
-        parent.submenu = submenu
-        return parent
-    }
-
-    private func loginItemMenuItem() -> NSMenuItem {
-        let item = NSMenuItem(title: "Launch at Login", action: #selector(loginItemTapped), keyEquivalent: "")
-        item.target = self
-        if LoginItem.isBundledApp {
-            item.state = LoginItem.isEnabled ? .on : .off
-        } else {
-            item.isEnabled = false
-            item.toolTip = "Available when running the packaged Coffee.app"
-        }
-        return item
-    }
-
     // MARK: - Actions
 
     @objc private func toggleTapped() {
@@ -233,28 +197,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refresh()
     }
 
-    @objc private func iconTapped(_ sender: NSMenuItem) {
-        if let raw = sender.representedObject as? String, let style = IconStyle(rawValue: raw) {
-            preferences.iconStyle = style
+    @objc private func settingsTapped() {
+        if settingsWindowController == nil {
+            settingsWindowController = SettingsWindowController(
+                preferences: preferences,
+                controller: controller,
+                onChange: { [weak self] in self?.refresh() }
+            )
         }
-        refresh()
+        settingsWindowController?.present()
     }
 
-    @objc private func preventTapped(_ sender: NSMenuItem) {
-        var flags = preferences.sleepFlags
-        flags[keyPath: SleepFlags.toggles[sender.tag].keyPath].toggle()
-        // The engine persists the flags and restarts a live session for us.
-        do { try controller.applyFlags(flags) } catch { logError(error) }
-        refresh()
-    }
-
-    @objc private func loginItemTapped() {
-        do {
-            try LoginItem.setEnabled(!LoginItem.isEnabled)
-        } catch {
-            logError(error)
-        }
-        refresh()
+    @objc private func aboutTapped() {
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     @objc private func quitTapped() {

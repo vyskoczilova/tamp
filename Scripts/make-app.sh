@@ -46,7 +46,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>LSUIElement</key><true/>
-    <key>NSHumanReadableCopyright</key><string>© Karolína Vyskočilová</string>
+    <key>NSHumanReadableCopyright</key><string>© 2026 Karolína Vyskočilová</string>
 </dict>
 </plist>
 PLIST
