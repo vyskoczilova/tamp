@@ -88,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let state = controller.status()
         let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
         menu.removeAllItems()
+        updateIcon(phase: phase)
 
         menu.addItem(statusLine(phase: phase, state: state))
         menu.addItem(.separator())
@@ -106,6 +107,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(loginItemMenuItem())
 
         menu.addItem(.separator())
+        let version = NSMenuItem(title: "Version \(appVersion)", action: nil, keyEquivalent: "")
+        version.isEnabled = false
+        menu.addItem(version)
         let quit = NSMenuItem(title: "Quit Coffee", action: #selector(quitTapped), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)

@@ -79,6 +79,8 @@ it from both front-ends so they never drift.
   `pgrep -x caffeinate`; if alive, `CoffeeState.Phase.externallyActive` is
   returned so both front-ends can display "caffeinated by another app".
   Coffee never kills or manages external processes.
+  **Icon rule:** filled = any caffeinate active (`.onIndefinite`, `.onTimed`,
+  `.externallyActive`); outline = nothing running (`.off` only).
 
 ### Sleep flags → `caffeinate`
 
@@ -89,9 +91,14 @@ on, disk off. A session never launches a no-op `caffeinate` (falls back to `-i`)
 ## Conventions
 
 - Swift 6 language mode; top-level executable code is MainActor-isolated.
+- Version bumps: update both `VERSION` (read by `Scripts/make-app.sh`) and
+  `Sources/CoffeeKit/Version.swift` (compiled into the binary, shown in menu).
+  Convention: bump the patch on every meaningful code change.
 - New icon styles: add a case to `IconStyle` and map active/inactive SF Symbol
-  names. Brewing-concept styles currently fall back to SF Symbols — shipping
-  custom artwork means adding template assets and wiring them in `IconStyle`.
+  names in both `inactiveSymbol` and `activeSymbol`. To check whether a symbol
+  name exists on this machine:
+  `swift -e 'import AppKit; print(NSImage(systemSymbolName: "name", accessibilityDescription: nil) != nil)'`
+  Shipping custom artwork means adding template assets and wiring them in `IconStyle`.
 - Keep `coffee` and `CoffeeBar` symmetric: any capability one exposes, the other
   should be able to reach through `CoffeeKit`.
 
