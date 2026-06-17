@@ -5,17 +5,13 @@ import Foundation
 /// `customAssetName`), with an SF Symbol fallback if the asset can't load.
 public enum IconStyle: String, CaseIterable, Codable, Sendable {
     case cup
-    case chemex
     case frenchPress
-    case tamper
 
     /// Human-readable label for menus and CLI output.
     public var label: String {
         switch self {
         case .cup: return "Cup"
-        case .chemex: return "Chemex"
         case .frenchPress: return "French Press"
-        case .tamper: return "Tamper"
         }
     }
 
@@ -24,9 +20,7 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
     public var customAssetName: String? {
         switch self {
         case .cup: return nil
-        case .chemex: return "noun-full-chemex-2460094"
         case .frenchPress: return "noun-french-press-7820817"
-        case .tamper: return "noun-tamper-8060658"
         }
     }
 
