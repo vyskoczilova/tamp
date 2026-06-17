@@ -9,5 +9,6 @@ Each custom style ships an outline (inactive) + filled (active) pair:
   Pour-Over   noun-hario-v60-pour-over-1025640 / -1025641 (filled)
   Filter      noun-coffee-filter-7855404 (outline) / -7855449 (filled)
   Pot         noun-coffee-pot-6809962 (outline) / -6832059 (filled)
+  Tamper      noun-coffee-tamper-7366163 (outline) / -8021081 (filled)
 
 Look up each ID at https://thenounproject.com/icon/<id>/ for the creator's name.

@@ -10,6 +10,7 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
     case pourOver
     case filter
     case pot
+    case tamper
 
     /// Human-readable label for menus and CLI output.
     public var label: String {
@@ -20,6 +21,7 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
         case .pourOver: return "Pour-Over"
         case .filter: return "Filter"
         case .pot: return "Pot"
+        case .tamper: return "Tamper"
         }
     }
 
@@ -35,6 +37,7 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
         case .pourOver: return active ? "noun-hario-v60-pour-over-1025641" : "noun-hario-v60-pour-over-1025640"
         case .filter: return active ? "noun-coffee-filter-7855449" : "noun-coffee-filter-7855404"
         case .pot: return active ? "noun-coffee-pot-6832059" : "noun-coffee-pot-6809962"
+        case .tamper: return active ? "noun-coffee-tamper-8021081" : "noun-coffee-tamper-7366163"
         }
     }
 
