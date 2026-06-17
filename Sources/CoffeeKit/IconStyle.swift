@@ -10,7 +10,6 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
     case pourOver
     case filter
     case pot
-    case frenchPress
 
     /// Human-readable label for menus and CLI output.
     public var label: String {
@@ -21,21 +20,21 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
         case .pourOver: return "Pour-Over"
         case .filter: return "Filter"
         case .pot: return "Pot"
-        case .frenchPress: return "French Press"
         }
     }
 
-    /// Basename of the bundled SVG template asset, or nil for SF-Symbol styles.
-    /// Filenames are the original noun-project IDs (kept verbatim).
-    public var customAssetName: String? {
+    /// Basename of the bundled SVG template asset for the given state, or nil for
+    /// SF-Symbol styles. Custom styles ship a pair: an outline variant for the
+    /// inactive state and a filled variant for the active state. Filenames are
+    /// the original noun-project IDs (kept verbatim).
+    public func customAsset(active: Bool) -> String? {
         switch self {
         case .cup: return nil
-        case .mug: return "noun-coffee-7693728"
-        case .toGo: return "noun-coffee-8248582"
-        case .pourOver: return "noun-hario-v60-pour-over-1025641"
-        case .filter: return "noun-coffee-filter-7855449"
-        case .pot: return "noun-coffee-pot-6832059"
-        case .frenchPress: return "noun-french-press-7820817"
+        case .mug: return active ? "noun-coffee-7693728" : "noun-coffee-7693726"
+        case .toGo: return active ? "noun-coffee-8248582" : "noun-coffee-8248581"
+        case .pourOver: return active ? "noun-hario-v60-pour-over-1025641" : "noun-hario-v60-pour-over-1025640"
+        case .filter: return active ? "noun-coffee-filter-7855449" : "noun-coffee-filter-7855404"
+        case .pot: return active ? "noun-coffee-pot-6832059" : "noun-coffee-pot-6809962"
         }
     }
 
