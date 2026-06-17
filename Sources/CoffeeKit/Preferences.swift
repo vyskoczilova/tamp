@@ -47,7 +47,7 @@ public struct Preferences {
         get {
             guard let raw = defaults.string(forKey: Key.iconStyle),
                   let style = IconStyle(rawValue: raw)
-            else { return .cup }
+            else { return .default }
             return style
         }
         nonmutating set {

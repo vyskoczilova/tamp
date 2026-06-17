@@ -93,7 +93,7 @@ final class SettingsWindowController: NSWindowController {
         divider.boxType = .separator
         divider.widthAnchor.constraint(equalToConstant: 320).isActive = true
         stack.addArrangedSubview(divider)
-        stack.addArrangedSubview(footer(copyrightText()))
+        stack.addArrangedSubview(footer("Coffee \(appVersion) · \(copyrightText())"))
 
         let container = NSView()
         container.addSubview(stack)

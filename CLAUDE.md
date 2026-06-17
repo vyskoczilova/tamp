@@ -119,7 +119,15 @@ on, disk off. A session never launches a no-op `caffeinate` (falls back to `-i`)
   `Sources/CoffeeBar/Icons/` and point `IconStyle.customAsset(active:)` at the
   basenames. `IconRenderer` (CoffeeBar) loads the state-appropriate one via
   `Bundle.module` as a template image; `make-app.sh` copies the generated
-  `Coffee_CoffeeBar.bundle` into the app.
+  `Coffee_CoffeeBar.bundle` into the app. Cases are ordered alphabetically by
+  `label`; the default style (when no pref is set) is `Preferences.iconStyle`'s
+  getter fallback.
+- Previewing icon artwork: `swift Scripts/icon-preview.swift [svg-dir] [out.png]`
+  renders a contact sheet (each icon at 18px + 44px, on a light and a dark bar)
+  so you can judge legibility before wiring SVGs in. Defaults to the `Icons/`
+  dir → `build/icon-preview.png`; pass a candidate folder (e.g. `tmp`) to vet new
+  art. `open` the PNG to view. This is the canonical preview path — don't hand-roll
+  throwaway render scripts.
 - Keep `coffee` and `CoffeeBar` symmetric: any capability one exposes, the other
   should be able to reach through `CoffeeKit`.
 

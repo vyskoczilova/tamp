@@ -4,6 +4,7 @@
 DerivedData/
 .DS_Store
 build/
+.vscode/
 
 # Scratch / scratchpad for icon assets, render previews
 tmp/

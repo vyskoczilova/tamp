@@ -2,26 +2,31 @@ import Foundation
 
 /// Selectable menu bar icon styles. `.cup` renders from an SF Symbol; the
 /// brewing styles render from bundled custom SVG template artwork (see
-/// `customAssetName`), with an SF Symbol fallback if the asset can't load.
+/// `customAsset(active:)`), with an SF Symbol fallback if the asset can't load.
+/// Cases are ordered alphabetically by `label` (the order shown in menus/CLI).
 public enum IconStyle: String, CaseIterable, Codable, Sendable {
+    // Keep cases sorted alphabetically by `label` — `allCases` drives menu/CLI order.
     case cup
-    case mug
-    case toGo
-    case pourOver
     case filter
+    case mug
     case pot
+    case pourOver
     case tamper
+    case toGo
+
+    /// The style used when no preference has been set yet.
+    public static let `default`: IconStyle = .tamper
 
     /// Human-readable label for menus and CLI output.
     public var label: String {
         switch self {
         case .cup: return "Cup"
-        case .mug: return "Mug"
-        case .toGo: return "To-Go"
-        case .pourOver: return "Pour-Over"
         case .filter: return "Filter"
+        case .mug: return "Mug"
         case .pot: return "Pot"
+        case .pourOver: return "Pour-Over"
         case .tamper: return "Tamper"
+        case .toGo: return "To-Go"
         }
     }
 
@@ -32,12 +37,12 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
     public func customAsset(active: Bool) -> String? {
         switch self {
         case .cup: return nil
-        case .mug: return active ? "noun-coffee-7693728" : "noun-coffee-7693726"
-        case .toGo: return active ? "noun-coffee-8248582" : "noun-coffee-8248581"
-        case .pourOver: return active ? "noun-hario-v60-pour-over-1025641" : "noun-hario-v60-pour-over-1025640"
         case .filter: return active ? "noun-coffee-filter-7855449" : "noun-coffee-filter-7855404"
+        case .mug: return active ? "noun-coffee-7693728" : "noun-coffee-7693726"
         case .pot: return active ? "noun-coffee-pot-6832059" : "noun-coffee-pot-6809962"
+        case .pourOver: return active ? "noun-hario-v60-pour-over-1025641" : "noun-hario-v60-pour-over-1025640"
         case .tamper: return active ? "noun-coffee-tamper-8021081" : "noun-coffee-tamper-7366163"
+        case .toGo: return active ? "noun-coffee-8248582" : "noun-coffee-8248581"
         }
     }
 
