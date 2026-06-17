@@ -2,6 +2,11 @@ Menu bar icon artwork — from The Noun Project (https://thenounproject.com).
 Noun Project icons are licensed CC BY 3.0; attribute the creator (or hold a
 Noun Project license) before distributing. Filenames keep the original noun IDs.
 
-  noun-french-press-7820817.svg French Press (icon #7820817)
+  noun-coffee-7693728.svg              Mug          (icon #7693728)
+  noun-coffee-8248582.svg              To-Go        (icon #8248582)
+  noun-hario-v60-pour-over-1025641.svg Pour-Over    (icon #1025641)
+  noun-coffee-filter-7855449.svg       Filter       (icon #7855449)
+  noun-coffee-pot-6832059.svg          Pot          (icon #6832059)
+  noun-french-press-7820817.svg        French Press (icon #7820817)
 
 Look up each ID at https://thenounproject.com/icon/<id>/ for the creator's name.

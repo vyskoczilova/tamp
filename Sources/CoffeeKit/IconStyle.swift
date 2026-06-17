@@ -5,12 +5,22 @@ import Foundation
 /// `customAssetName`), with an SF Symbol fallback if the asset can't load.
 public enum IconStyle: String, CaseIterable, Codable, Sendable {
     case cup
+    case mug
+    case toGo
+    case pourOver
+    case filter
+    case pot
     case frenchPress
 
     /// Human-readable label for menus and CLI output.
     public var label: String {
         switch self {
         case .cup: return "Cup"
+        case .mug: return "Mug"
+        case .toGo: return "To-Go"
+        case .pourOver: return "Pour-Over"
+        case .filter: return "Filter"
+        case .pot: return "Pot"
         case .frenchPress: return "French Press"
         }
     }
@@ -20,6 +30,11 @@ public enum IconStyle: String, CaseIterable, Codable, Sendable {
     public var customAssetName: String? {
         switch self {
         case .cup: return nil
+        case .mug: return "noun-coffee-7693728"
+        case .toGo: return "noun-coffee-8248582"
+        case .pourOver: return "noun-hario-v60-pour-over-1025641"
+        case .filter: return "noun-coffee-filter-7855449"
+        case .pot: return "noun-coffee-pot-6832059"
         case .frenchPress: return "noun-french-press-7820817"
         }
     }
