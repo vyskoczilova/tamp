@@ -25,6 +25,7 @@
 [x] Menu stays fully interactive even when external caffeinate is running
 [x] Settings panel (NSPanel) — sleep flags, icon style, launch-at-login moved
     out of the menu
-[x] About panel — system About box with version + copyright (NSHumanReadableCopyright)
+[x] Version + copyright shown in the Settings footer (replaced the separate
+    system About box, which was redundant)
 [x] Custom brewing-concept icons (Pour-Over, French Press, Tamper, Chemex) from
     bundled SVG template artwork via IconRenderer + Bundle.module

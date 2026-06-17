@@ -109,9 +109,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let settings = NSMenuItem(title: "Settings…", action: #selector(settingsTapped), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
-        let about = NSMenuItem(title: "About Coffee", action: #selector(aboutTapped), keyEquivalent: "")
-        about.target = self
-        menu.addItem(about)
 
         menu.addItem(.separator())
         let version = NSMenuItem(title: "Version \(appVersion)", action: nil, keyEquivalent: "")
@@ -202,11 +199,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         }
         settingsWindowController?.present()
-    }
-
-    @objc private func aboutTapped() {
-        NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(nil)
     }
 
     @objc private func quitTapped() {
