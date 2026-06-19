@@ -9,7 +9,7 @@ both built around macOS's built-in `caffeinate`.
 - **Caffeinate for** a duration (`30m`, `1h`, `1h30m`, `90s`) or **until** a clock time (`17:30`)
 - Independently prevent **display / system / disk** sleep
 - A menu bar icon that reflects the current state, with a selectable icon style
-  including coffee **brewing concepts** (pour-over, espresso, French press, kettle)
+  including coffee **brewing concepts** (pour-over, filter, pot, tamper)
 - A `coffee` CLI and the menu bar app share one source of truth, so changing
   state in one is reflected in the other
 - The icon and status also reflect **external caffeination** — if another tool
@@ -96,13 +96,12 @@ which this setup doesn't have.)
 
 - "Caffeinate while app X runs" (`caffeinate -w <pid>`)
 - Natural-language recurring schedules
-- Custom template artwork for the brewing-concept icon styles (they currently
-  fall back to SF Symbols)
 - Distribution: Developer ID signing + notarization (the bundle is ad-hoc
   signed today, which is fine for personal use) and a Homebrew cask
 
-Done since v1.0.0: a real `Coffee.app` bundle (`Scripts/make-app.sh`) and
-launch-at-login via `SMAppService`.
+Done since v1.0.0: a real `Coffee.app` bundle (`Scripts/make-app.sh`),
+launch-at-login via `SMAppService`, and custom template artwork for the
+brewing-concept icon styles (bundled SVG pairs via `IconRenderer`).
 
 ## License & attribution
 

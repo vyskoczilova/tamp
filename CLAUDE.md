@@ -135,12 +135,13 @@ on, disk off. A session never launches a no-op `caffeinate` (falls back to `-i`)
 
 - `caffeinate -w <pid>` ("keep awake while app X runs")
 - Natural-language recurring schedules
-- Custom artwork for the brewing-concept icon styles
 - Distribution: Developer ID signing + notarization (the bundle is ad-hoc
   signed today, fine for personal use); Homebrew cask
 
-Done since v1.0.0: `Coffee.app` bundle (`Scripts/make-app.sh`) and
-launch-at-login via `SMAppService` (`LoginItem.swift`).
+Done since v1.0.0: `Coffee.app` bundle (`Scripts/make-app.sh`),
+launch-at-login via `SMAppService` (`LoginItem.swift`), and custom template
+artwork for the brewing-concept icon styles (bundled SVG pairs via
+`IconRenderer`).
 
 ## License
 

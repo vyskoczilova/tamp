@@ -12,14 +12,25 @@ enum IconRenderer {
     /// - pointSize: square render size in points (~18 for the menu bar).
     static func image(for style: IconStyle, active: Bool, pointSize: CGFloat) -> NSImage? {
         if let custom = customImage(style.customAsset(active: active), pointSize: pointSize) {
-            // The pour-over outline has very thin lines that nearly vanish when
-            // inactive; thicken them so the off-state stays legible.
-            if style == .pourOver && !active {
-                return emboldened(custom, pointSize: pointSize)
+            // Some outline (inactive) variants have thin lines that read faintly
+            // at 18px; thicken just those so the off-state stays legible.
+            if let weight = emboldenWeight(style, active: active) {
+                return emboldened(custom, pointSize: pointSize, weight: weight)
             }
             return custom
         }
         return symbolImage(for: style, active: active)
+    }
+
+    /// Stroke-thickening weight for a style's outline state, or nil for none.
+    /// Only the inactive (non-selected) outline is emboldened.
+    private static func emboldenWeight(_ style: IconStyle, active: Bool) -> CGFloat? {
+        guard !active else { return nil }
+        switch style {
+        case .pourOver: return 0.6
+        case .pot, .filter: return 0.2
+        default: return nil
+        }
     }
 
     private static func customImage(_ asset: String?, pointSize: CGFloat) -> NSImage? {
