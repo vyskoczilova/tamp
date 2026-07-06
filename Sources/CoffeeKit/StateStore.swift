@@ -21,6 +21,8 @@ public final class StateStore {
     }
 
     /// Load the raw persisted state, defaulting to inactive if absent/corrupt.
+    /// (An unreadable file mapping to "inactive" is by design — the next save
+    /// rewrites it — so decode failures are not logged.)
     public func loadRaw() -> CoffeeState {
         var result = CoffeeState.inactive()
         var coordError: NSError?
@@ -30,15 +32,27 @@ public final class StateStore {
             else { return }
             result = state
         }
+        if let coordError {
+            kitLog.error("state read coordination failed: \(coordError, privacy: .public)")
+        }
         return result
     }
 
-    /// Persist the given state atomically.
+    /// Persist the given state atomically. A failed save is serious — the
+    /// tracked caffeinate may already be gone/killed while the file still says
+    /// active — so it is logged, though status() self-heals on the next read.
     public func save(_ state: CoffeeState) {
         var coordError: NSError?
         coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { writeURL in
-            guard let data = try? JSONEncoder.coffee.encode(state) else { return }
-            try? data.write(to: writeURL, options: .atomic)
+            do {
+                let data = try JSONEncoder.coffee.encode(state)
+                try data.write(to: writeURL, options: .atomic)
+            } catch {
+                kitLog.error("state save failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+        if let coordError {
+            kitLog.error("state save coordination failed: \(coordError, privacy: .public)")
         }
     }
 }
