@@ -1,5 +1,5 @@
 import AppKit
-import CoffeeKit
+import TampKit
 
 // Headless teardown hook used by Scripts/uninstall.sh. Must run from inside the
 // .app bundle so `SMAppService.mainApp` resolves to this app's login-item

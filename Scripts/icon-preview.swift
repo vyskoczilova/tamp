@@ -14,7 +14,7 @@
 import AppKit
 
 let args = CommandLine.arguments
-let svgDir = args.count > 1 ? args[1] : "Sources/CoffeeBar/Icons"
+let svgDir = args.count > 1 ? args[1] : "Sources/TampBar/Icons"
 let outPath = args.count > 2 ? args[2] : "build/icon-preview.png"
 
 let files = ((try? FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: svgDir), includingPropertiesForKeys: nil)) ?? [])

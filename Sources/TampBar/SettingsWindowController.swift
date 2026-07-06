@@ -1,5 +1,5 @@
 import AppKit
-import CoffeeKit
+import TampKit
 
 /// Settings panel: sleep flags, icon style, and launch-at-login. These used to
 /// live in the menu itself; pulling them out keeps the menu to actions only.
@@ -28,7 +28,7 @@ final class SettingsWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        panel.title = "Coffee Settings"
+        panel.title = "Tamp Settings"
         panel.isFloatingPanel = true
         panel.hidesOnDeactivate = false
         super.init(window: panel)
@@ -93,7 +93,7 @@ final class SettingsWindowController: NSWindowController {
         divider.boxType = .separator
         divider.widthAnchor.constraint(equalToConstant: 320).isActive = true
         stack.addArrangedSubview(divider)
-        stack.addArrangedSubview(footer("Coffee \(appVersion) · \(copyrightText())"))
+        stack.addArrangedSubview(footer("Tamp \(appVersion) · \(copyrightText())"))
 
         let container = NSView()
         container.addSubview(stack)
@@ -174,7 +174,7 @@ final class SettingsWindowController: NSWindowController {
         } else {
             loginCheck.isEnabled = false
             loginCheck.state = .off
-            loginCheck.toolTip = "Available when running the packaged Coffee.app"
+            loginCheck.toolTip = "Available when running the packaged Tamp.app"
         }
     }
 
@@ -185,7 +185,7 @@ final class SettingsWindowController: NSWindowController {
         var flags = preferences.sleepFlags
         flags[keyPath: SleepFlags.toggles[index].keyPath] = sender.state == .on
         // The engine persists the flags and restarts a live session for us.
-        do { try controller.applyFlags(flags) } catch { logCoffeeError("settings action failed", error) }
+        do { try controller.applyFlags(flags) } catch { logTampError("settings action failed", error) }
         onChange()
     }
 
@@ -203,7 +203,7 @@ final class SettingsWindowController: NSWindowController {
         do {
             try LoginItem.setEnabled(loginCheck.state == .on)
         } catch {
-            logCoffeeError("settings action failed", error)
+            logTampError("settings action failed", error)
             syncControls()
         }
         onChange()

@@ -1,5 +1,5 @@
 import AppKit
-import CoffeeKit
+import TampKit
 
 /// Turns an `IconStyle` into a menu-bar `NSImage` — the single place that
 /// resolves custom SVG template artwork (bundled via `Bundle.module`) and falls

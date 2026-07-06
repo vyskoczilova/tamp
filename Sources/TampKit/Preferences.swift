@@ -12,8 +12,8 @@ public struct Preferences {
         static let iconStyle = "iconStyle"
     }
 
-    /// The shared suite used by both `coffee` and `CoffeeBar`.
-    public static let suiteName = "cz.kybernaut.coffee"
+    /// The shared suite used by both `tamp` and `TampBar`.
+    public static let suiteName = "cz.kybernaut.tamp"
 
     public init(defaults: UserDefaults? = nil) {
         self.defaults = defaults ?? UserDefaults(suiteName: Preferences.suiteName) ?? .standard

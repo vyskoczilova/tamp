@@ -14,14 +14,14 @@ public final class CaffeinateController {
     }
 
     /// Current state, reconciled against the running process.
-    public func status() -> CoffeeState {
+    public func status() -> TampState {
         reconcile(store.loadRaw())
     }
 
     /// Start caffeination. `duration` nil means indefinite; otherwise timed.
     /// `flags` overrides the saved preferences for this session when provided.
     @discardableResult
-    public func start(duration seconds: Int? = nil, flags: SleepFlags? = nil) throws -> CoffeeState {
+    public func start(duration seconds: Int? = nil, flags: SleepFlags? = nil) throws -> TampState {
         stop() // Replace any existing session.
 
         let effectiveFlags = flags ?? preferences.sleepFlags
@@ -36,7 +36,7 @@ public final class CaffeinateController {
         process.standardError = FileHandle.nullDevice
         try process.run()
 
-        let state = CoffeeState(
+        let state = TampState(
             active: true,
             pid: process.processIdentifier,
             endsAt: seconds.map { Date().addingTimeInterval(TimeInterval($0)) },
@@ -49,7 +49,7 @@ public final class CaffeinateController {
     /// Persist new sleep preferences. If a session is live, restart it so the
     /// flags take effect immediately while preserving any remaining time.
     @discardableResult
-    public func applyFlags(_ flags: SleepFlags) throws -> CoffeeState {
+    public func applyFlags(_ flags: SleepFlags) throws -> TampState {
         preferences.sleepFlags = flags
         let current = status()
         guard current.active else { return current }
@@ -58,19 +58,19 @@ public final class CaffeinateController {
 
     /// Stop any running session. Safe to call when already inactive.
     @discardableResult
-    public func stop() -> CoffeeState {
+    public func stop() -> TampState {
         let current = store.loadRaw()
         if let pid = current.pid, isTrackedCaffeinate(pid) {
             kill(pid, SIGTERM)
         }
-        let inactive = CoffeeState.inactive(flags: current.flags)
+        let inactive = TampState.inactive(flags: current.flags)
         store.save(inactive)
         return inactive
     }
 
     /// Toggle on (indefinite) or off based on current state.
     @discardableResult
-    public func toggle() throws -> CoffeeState {
+    public func toggle() throws -> TampState {
         if status().active {
             return stop()
         }
@@ -81,12 +81,12 @@ public final class CaffeinateController {
 
     /// If the recorded process is gone (manual kill or timer elapsed), correct
     /// the persisted state to inactive.
-    private func reconcile(_ state: CoffeeState) -> CoffeeState {
+    private func reconcile(_ state: TampState) -> TampState {
         guard state.active, let pid = state.pid else { return state }
         if isTrackedCaffeinate(pid) {
             return state
         }
-        let corrected = CoffeeState.inactive(flags: state.flags)
+        let corrected = TampState.inactive(flags: state.flags)
         store.save(corrected)
         return corrected
     }

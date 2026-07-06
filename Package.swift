@@ -2,36 +2,36 @@
 import PackageDescription
 
 let package = Package(
-    name: "Coffee",
+    name: "Tamp",
     platforms: [.macOS(.v13)],
     products: [
-        .library(name: "CoffeeKit", targets: ["CoffeeKit"]),
-        .executable(name: "coffee", targets: ["coffee"]),
-        .executable(name: "CoffeeBar", targets: ["CoffeeBar"]),
+        .library(name: "TampKit", targets: ["TampKit"]),
+        .executable(name: "tamp", targets: ["tamp"]),
+        .executable(name: "TampBar", targets: ["TampBar"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-argument-parser.git", from: "1.3.0"),
     ],
     targets: [
-        .target(name: "CoffeeKit"),
+        .target(name: "TampKit"),
         .executableTarget(
-            name: "coffee",
+            name: "tamp",
             dependencies: [
-                "CoffeeKit",
+                "TampKit",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ]
         ),
         .executableTarget(
-            name: "CoffeeBar",
-            dependencies: ["CoffeeKit"],
+            name: "TampBar",
+            dependencies: ["TampKit"],
             resources: [.copy("Icons")]
         ),
         // Standalone test runner: XCTest/Swift Testing need full Xcode, which
         // isn't present here, so checks run as a plain executable. `swift run
-        // CoffeeKitChecks` exits non-zero on failure.
+        // TampKitChecks` exits non-zero on failure.
         .executableTarget(
-            name: "CoffeeKitChecks",
-            dependencies: ["CoffeeKit"]
+            name: "TampKitChecks",
+            dependencies: ["TampKit"]
         ),
     ]
 )

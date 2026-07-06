@@ -1,11 +1,11 @@
 import ArgumentParser
-import CoffeeKit
+import TampKit
 import Foundation
 
 @main
-struct Coffee: ParsableCommand {
+struct Tamp: ParsableCommand {
     static let configuration = CommandConfiguration(
-        commandName: "coffee",
+        commandName: "tamp",
         abstract: """
         Keep your Mac awake. Karolína Vyskočilová's wrapper around the native \
         macOS caffeinate command, inspired by the Raycast Coffee extension.
@@ -70,7 +70,7 @@ struct Toggle: ParsableCommand {
 struct For: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "for",
-        abstract: "Keep awake for a duration, e.g. 'coffee for 2h' or '1h30m'."
+        abstract: "Keep awake for a duration, e.g. 'tamp for 2h' or '1h30m'."
     )
     @Argument(help: "Duration: 30m, 1h, 1h30m, 90s (bare number = minutes).")
     var duration: String
@@ -85,7 +85,7 @@ struct For: ParsableCommand {
 
 struct Until: ParsableCommand {
     static let configuration = CommandConfiguration(
-        abstract: "Keep awake until a clock time, e.g. 'coffee until 17:30'."
+        abstract: "Keep awake until a clock time, e.g. 'tamp until 17:30'."
     )
     @Argument(help: "Time in 24h HH:MM. Past times roll to tomorrow.")
     var time: String
@@ -107,7 +107,7 @@ struct Status: ParsableCommand {
         let state = CaffeinateController().status()
         if json {
             let report = StatusReport(state: state, systemActive: SystemAssertions.isCaffeinated())
-            let data = try JSONEncoder.coffee.encode(report)
+            let data = try JSONEncoder.tamp.encode(report)
             print(String(decoding: data, as: UTF8.self))
         } else {
             print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
@@ -145,7 +145,7 @@ struct Icon: ParsableCommand {
 }
 
 /// Render a state as a one-line human summary.
-func describe(_ state: CoffeeState, systemActive: Bool = false) -> String {
+func describe(_ state: TampState, systemActive: Bool = false) -> String {
     switch state.phase(systemActive: systemActive) {
     case .off:
         return "☕️ Off — your Mac can sleep normally."

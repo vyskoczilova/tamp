@@ -1,5 +1,5 @@
 import AppKit
-import CoffeeKit
+import TampKit
 import Foundation
 
 /// The menu bar controller. Owns the status item, reflects the shared state in
@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rescheduleExpiryPoll(for: state)
     }
 
-    private func updateIcon(phase: CoffeeState.Phase) {
+    private func updateIcon(phase: TampState.Phase) {
         let isActive = phase != .off
         statusItem.button?.image = IconRenderer.image(
             for: preferences.iconStyle, active: isActive, pointSize: 18
@@ -62,10 +62,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Schedule a background poll whenever the icon can change without a file-
-    /// system event: timed sessions (expiry) and Coffee-inactive periods
+    /// system event: timed sessions (expiry) and Tamp-inactive periods
     /// (external caffeinate start/stop). Uses a short interval when inactive so
     /// the icon tracks external processes in near-real-time.
-    private func rescheduleExpiryPoll(for state: CoffeeState) {
+    private func rescheduleExpiryPoll(for state: TampState) {
         let interval: TimeInterval? =
             state.active && state.endsAt != nil ? 30 :   // timed session expiry
             !state.active                       ? 5  :   // external caffeinate detection
@@ -118,12 +118,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let version = NSMenuItem(title: "Version \(appVersion)", action: nil, keyEquivalent: "")
         version.isEnabled = false
         menu.addItem(version)
-        let quit = NSMenuItem(title: "Quit Coffee", action: #selector(quitTapped), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit Tamp", action: #selector(quitTapped), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
     }
 
-    private func statusLine(phase: CoffeeState.Phase, state: CoffeeState) -> NSMenuItem {
+    private func statusLine(phase: TampState.Phase, state: TampState) -> NSMenuItem {
         let title: String
         switch phase {
         case .off:
@@ -184,13 +184,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - Actions
 
     @objc private func toggleTapped() {
-        do { try controller.toggle() } catch { logCoffeeError("caffeinate action failed", error) }
+        do { try controller.toggle() } catch { logTampError("caffeinate action failed", error) }
         refresh()
     }
 
     @objc private func durationTapped(_ sender: NSMenuItem) {
         let preset = durationPresets[sender.tag]
-        do { try controller.start(duration: preset.seconds) } catch { logCoffeeError("caffeinate action failed", error) }
+        do { try controller.start(duration: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
         refresh()
     }
 

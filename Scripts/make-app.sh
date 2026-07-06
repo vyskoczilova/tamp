@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Build CoffeeBar and assemble it into a real Coffee.app bundle.
+# Build TampBar and assemble it into a real Tamp.app bundle.
 #
 # Usage:
-#   Scripts/make-app.sh                   # build only → build/Coffee.app
+#   Scripts/make-app.sh                   # build only → build/Tamp.app
 #   Scripts/make-app.sh --install         # build + quit old + install to /Applications/ + relaunch
-#   Scripts/make-app.sh --install 0.3.0   # same, with an explicit version override
+#   Scripts/make-app.sh --install 1.2.0   # same, with an explicit version override
 set -euo pipefail
 
 INSTALL=false
@@ -16,11 +16,11 @@ for arg in "$@"; do
     esac
 done
 
-APP_NAME="Coffee"
-# The SwiftPM target is "CoffeeBar", but the binary is installed under this name
+APP_NAME="Tamp"
+# The SwiftPM target is "TampBar", but the binary is installed under this name
 # (see the cp below) so the running process and the bundle share one identity.
-EXE_NAME="Coffee"
-BUNDLE_ID="cz.kybernaut.coffee"
+EXE_NAME="Tamp"
+BUNDLE_ID="cz.kybernaut.tamp"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${VERSION_ARG:-$(cat "$ROOT/VERSION" 2>/dev/null || echo "0.0.0")}"
 BUILD_DIR="$ROOT/build"
@@ -28,21 +28,21 @@ APP="$BUILD_DIR/$APP_NAME.app"
 
 echo "==> Building release binary… (v${VERSION})"
 swift build -c release --package-path "$ROOT"
-BIN="$ROOT/.build/release/CoffeeBar"
+BIN="$ROOT/.build/release/TampBar"
 
 echo "==> Assembling $APP …"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # Install the binary as $EXE_NAME so the running process and the bundle share
-# one identity. (The SwiftPM target stays "CoffeeBar" — it can't be renamed to
-# "Coffee" because the filesystem is case-insensitive and the `coffee` CLI would
+# one identity. (The SwiftPM target stays "TampBar" — it can't be renamed to
+# "Tamp" because the filesystem is case-insensitive and the `tamp` CLI would
 # collide.) The menu-bar / login-item identity comes from the bundle, not the
 # target name, so this rename-on-copy is all it takes.
 cp "$BIN" "$APP/Contents/MacOS/$EXE_NAME"
 
 # Ship the SwiftPM resource bundle (custom icon SVGs) so Bundle.module resolves
 # inside the packaged app — it looks for the bundle in Contents/Resources.
-cp -R "$ROOT"/.build/release/*_CoffeeBar.bundle "$APP/Contents/Resources/" 2>/dev/null || true
+cp -R "$ROOT"/.build/release/*_TampBar.bundle "$APP/Contents/Resources/" 2>/dev/null || true
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -70,27 +70,30 @@ echo "==> Done: $APP"
 codesign -dvv "$APP" 2>&1 | sed -n '1,4p' || true
 
 if $INSTALL; then
-    echo "==> Quitting running Coffee.app…"
-    # New bundles run as $EXE_NAME; "CoffeeBar" covers older installs and bare runs.
+    echo "==> Quitting running Tamp.app…"
+    # New bundles run as $EXE_NAME; "TampBar" covers bare dev runs, and the
+    # Coffee/CoffeeBar names cover pre-rename installs.
     pkill -x "$EXE_NAME" 2>/dev/null || true
+    pkill -x TampBar 2>/dev/null || true
+    pkill -x Coffee 2>/dev/null || true
     pkill -x CoffeeBar 2>/dev/null || true
     sleep 1
 
     echo "==> Installing to /Applications/…"
-    rm -rf /Applications/Coffee.app
-    cp -r "$APP" /Applications/Coffee.app
+    rm -rf /Applications/Tamp.app
+    cp -r "$APP" /Applications/Tamp.app
 
-    echo "==> Launching /Applications/Coffee.app…"
-    open /Applications/Coffee.app
-    echo "==> Done — Coffee ${VERSION} is running from /Applications/"
+    echo "==> Launching /Applications/Tamp.app…"
+    open /Applications/Tamp.app
+    echo "==> Done — Tamp ${VERSION} is running from /Applications/"
 else
     cat <<NEXT
 
 Next steps:
   • Install:   Scripts/make-app.sh --install
-    (quits old instance, replaces /Applications/Coffee.app, relaunches)
+    (quits old instance, replaces /Applications/Tamp.app, relaunches)
   • Or manually:
-      mv "$APP" /Applications/   # only works if Coffee.app isn't there yet
+      mv "$APP" /Applications/   # only works if Tamp.app isn't there yet
       open /Applications/${APP_NAME}.app
 NEXT
 fi

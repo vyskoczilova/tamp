@@ -1,5 +1,5 @@
 import Foundation
-import CoffeeKit
+import TampKit
 
 // Minimal assertion harness (no XCTest/Swift Testing available without Xcode).
 var failures = 0
@@ -66,10 +66,10 @@ check(SleepFlags(display: false, system: false, disk: false).caffeinateArguments
 
 print("StateStore")
 let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
-    .appendingPathComponent("coffee-test-\(UUID().uuidString).json")
+    .appendingPathComponent("tamp-test-\(UUID().uuidString).json")
 let store = StateStore(url: tmp)
 let endsAt = Date(timeIntervalSince1970: 1_800_000_000)
-store.save(CoffeeState(
+store.save(TampState(
     active: true, pid: 4242,
     endsAt: endsAt,
     flags: SleepFlags(display: true, system: false, disk: true)
@@ -82,7 +82,7 @@ check(loaded.flags == SleepFlags(display: true, system: false, disk: true), "rou
 try? FileManager.default.removeItem(at: tmp)
 
 let missing = StateStore(url: URL(fileURLWithPath: NSTemporaryDirectory())
-    .appendingPathComponent("coffee-missing-\(UUID().uuidString).json"))
+    .appendingPathComponent("tamp-missing-\(UUID().uuidString).json"))
 check(missing.loadRaw().active == false, "missing file → inactive")
 
 print("CaffeinateController — PID identity")
@@ -90,19 +90,19 @@ print("CaffeinateController — PID identity")
 // itself — simulating PID reuse after reboot/expiry) must reconcile to
 // inactive, and stop() must not signal it.
 let pidTmp = URL(fileURLWithPath: NSTemporaryDirectory())
-    .appendingPathComponent("coffee-pid-\(UUID().uuidString).json")
+    .appendingPathComponent("tamp-pid-\(UUID().uuidString).json")
 let pidStore = StateStore(url: pidTmp)
-pidStore.save(CoffeeState(active: true, pid: getpid()))
+pidStore.save(TampState(active: true, pid: getpid()))
 let pidController = CaffeinateController(store: pidStore)
 check(pidController.status().active == false, "reused PID (live non-caffeinate) reconciles to inactive")
-pidStore.save(CoffeeState(active: true, pid: getpid()))
+pidStore.save(TampState(active: true, pid: getpid()))
 _ = pidController.stop() // surviving this call is the assertion
 check(true, "stop() with reused PID did not kill this process")
 try? FileManager.default.removeItem(at: pidTmp)
 
 print("CaffeinateController — lifecycle")
 let lifeTmp = URL(fileURLWithPath: NSTemporaryDirectory())
-    .appendingPathComponent("coffee-life-\(UUID().uuidString).json")
+    .appendingPathComponent("tamp-life-\(UUID().uuidString).json")
 let lifeController = CaffeinateController(store: StateStore(url: lifeTmp))
 do {
     let started = try lifeController.start(duration: 60)
@@ -123,19 +123,19 @@ do {
 }
 try? FileManager.default.removeItem(at: lifeTmp)
 
-print("CoffeeState")
+print("TampState")
 let nowState = Date()
-let timed = CoffeeState(active: true, endsAt: nowState.addingTimeInterval(600))
+let timed = TampState(active: true, endsAt: nowState.addingTimeInterval(600))
 check(timed.remaining(now: nowState).map { abs($0 - 600) < 1 } == true, "remaining ≈ 600")
-check(CoffeeState.inactive().remaining() == nil, "inactive → nil remaining")
+check(TampState.inactive().remaining() == nil, "inactive → nil remaining")
 
 if case .onTimed(let r) = timed.phase(now: nowState) {
     check(abs(r - 600) < 1, "phase onTimed ≈ 600")
 } else {
     check(false, "phase should be onTimed")
 }
-check(CoffeeState.inactive().phase() == .off, "inactive → phase off")
-check(CoffeeState(active: true).phase() == .onIndefinite, "active, no endsAt → phase onIndefinite")
+check(TampState.inactive().phase() == .off, "inactive → phase off")
+check(TampState(active: true).phase() == .onIndefinite, "active, no endsAt → phase onIndefinite")
 
 print("StatusReport")
 let extReport = StatusReport(state: .inactive(), systemActive: true)

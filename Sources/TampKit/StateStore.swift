@@ -1,7 +1,7 @@
 import Foundation
 
 /// Reads and writes the shared state file at
-/// `~/Library/Application Support/Coffee/state.json`, so the menu bar app and
+/// `~/Library/Application Support/Tamp/state.json`, so the menu bar app and
 /// the CLI agree on the current caffeination state.
 public final class StateStore {
     public let url: URL
@@ -12,7 +12,7 @@ public final class StateStore {
             self.url = url
         } else {
             let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            self.url = support.appendingPathComponent("Coffee/state.json")
+            self.url = support.appendingPathComponent("Tamp/state.json")
         }
         try? FileManager.default.createDirectory(
             at: self.url.deletingLastPathComponent(),
@@ -23,12 +23,12 @@ public final class StateStore {
     /// Load the raw persisted state, defaulting to inactive if absent/corrupt.
     /// (An unreadable file mapping to "inactive" is by design — the next save
     /// rewrites it — so decode failures are not logged.)
-    public func loadRaw() -> CoffeeState {
-        var result = CoffeeState.inactive()
+    public func loadRaw() -> TampState {
+        var result = TampState.inactive()
         var coordError: NSError?
         coordinator.coordinate(readingItemAt: url, options: [], error: &coordError) { readURL in
             guard let data = try? Data(contentsOf: readURL),
-                  let state = try? JSONDecoder.coffee.decode(CoffeeState.self, from: data)
+                  let state = try? JSONDecoder.tamp.decode(TampState.self, from: data)
             else { return }
             result = state
         }
@@ -41,11 +41,11 @@ public final class StateStore {
     /// Persist the given state atomically. A failed save is serious — the
     /// tracked caffeinate may already be gone/killed while the file still says
     /// active — so it is logged, though status() self-heals on the next read.
-    public func save(_ state: CoffeeState) {
+    public func save(_ state: TampState) {
         var coordError: NSError?
         coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { writeURL in
             do {
-                let data = try JSONEncoder.coffee.encode(state)
+                let data = try JSONEncoder.tamp.encode(state)
                 try data.write(to: writeURL, options: .atomic)
             } catch {
                 kitLog.error("state save failed: \(String(describing: error), privacy: .public)")
@@ -58,7 +58,7 @@ public final class StateStore {
 }
 
 extension JSONEncoder {
-    public static var coffee: JSONEncoder {
+    public static var tamp: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -67,7 +67,7 @@ extension JSONEncoder {
 }
 
 extension JSONDecoder {
-    public static var coffee: JSONDecoder {
+    public static var tamp: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return decoder

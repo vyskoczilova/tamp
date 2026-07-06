@@ -1,8 +1,8 @@
 import Foundation
 
 /// Checks whether any caffeinate process is alive on the system, regardless
-/// of who started it. Used only when Coffee's own state is inactive — if
-/// Coffee has a live session, `CoffeeState.active` takes precedence and this
+/// of who started it. Used only when Tamp's own state is inactive — if
+/// Tamp has a live session, `TampState.active` takes precedence and this
 /// is never consulted. The scan runs in-process via libproc (callable straight
 /// from Swift): the front-ends poll this while idle, and spawning a `pgrep`
 /// subprocess every few seconds is needless fork/exec churn.
