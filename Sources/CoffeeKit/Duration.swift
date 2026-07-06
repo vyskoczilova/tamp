@@ -7,6 +7,7 @@ public enum DurationParser {
         case empty
         case invalid(String)
         case timeInPast(String)
+        case tooLong(String)
 
         public var description: String {
             switch self {
@@ -16,9 +17,16 @@ public enum DurationParser {
                 return "Could not parse \"\(s)\". Examples: 30m, 1h, 1h30m, 90s."
             case .timeInPast(let s):
                 return "\"\(s)\" is not in the future today. Use HH:MM (24h), e.g. 17:30."
+            case .tooLong(let s):
+                return "\"\(s)\" is too long. Sessions are capped at 7 days."
             }
         }
     }
+
+    /// Upper bound for a single session (7 days). Checking values against it
+    /// *before* multiplying is also what keeps absurd inputs from overflowing
+    /// Int and crashing.
+    public static let maxSeconds = 7 * 24 * 3600
 
     /// Parse a compact duration like "1h30m", "45m", "90s", "2h" into seconds.
     public static func seconds(from text: String) throws -> Int {
@@ -28,6 +36,7 @@ public enum DurationParser {
         // Bare number means minutes (e.g. "90" → 90 minutes).
         if let bare = Int(trimmed) {
             guard bare > 0 else { throw ParseError.invalid(text) }
+            guard bare <= maxSeconds / 60 else { throw ParseError.tooLong(text) }
             return bare * 60
         }
 
@@ -39,12 +48,17 @@ public enum DurationParser {
                 number.append(ch)
             } else {
                 guard let value = Int(number) else { throw ParseError.invalid(text) }
+                let unit: Int
                 switch ch {
-                case "h": total += value * 3600
-                case "m": total += value * 60
-                case "s": total += value
+                case "h": unit = 3600
+                case "m": unit = 60
+                case "s": unit = 1
                 default: throw ParseError.invalid(text)
                 }
+                guard value <= maxSeconds / unit, total + value * unit <= maxSeconds else {
+                    throw ParseError.tooLong(text)
+                }
+                total += value * unit
                 number = ""
                 matched = true
             }

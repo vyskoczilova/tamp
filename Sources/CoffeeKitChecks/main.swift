@@ -32,6 +32,16 @@ checkThrows("empty string throws") { _ = try DurationParser.seconds(from: "") }
 checkThrows("abc throws") { _ = try DurationParser.seconds(from: "abc") }
 checkThrows("1h30 (trailing digits) throws") { _ = try DurationParser.seconds(from: "1h30") }
 checkThrows("0m throws") { _ = try DurationParser.seconds(from: "0m") }
+check((try? DurationParser.seconds(from: "168h")) == DurationParser.maxSeconds, "168h → exactly the 7-day cap")
+checkThrows("169h (over cap) throws") { _ = try DurationParser.seconds(from: "169h") }
+checkThrows("10081 bare minutes (over cap) throws") { _ = try DurationParser.seconds(from: "10081") }
+checkThrows("167h100m (components under cap, total over) throws") { _ = try DurationParser.seconds(from: "167h100m") }
+checkThrows("Int.max hours throws instead of crashing") {
+    _ = try DurationParser.seconds(from: "9223372036854775807h")
+}
+checkThrows("Int.max bare minutes throws instead of crashing") {
+    _ = try DurationParser.seconds(from: "9223372036854775807")
+}
 
 var cal = Calendar(identifier: .gregorian)
 cal.timeZone = TimeZone(identifier: "UTC")!
