@@ -11,6 +11,7 @@ struct Tamp: ParsableCommand {
         macOS caffeinate command — tracks its own sessions and shows when other \
         apps keep the Mac awake. Inspired by the Raycast Coffee extension.
         """,
+        discussion: "Project & release notes: \(appRepoURL.absoluteString)",
         version: appVersion,
         subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Status.self, Icon.self],
         defaultSubcommand: Status.self

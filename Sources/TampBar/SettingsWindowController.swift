@@ -93,7 +93,7 @@ final class SettingsWindowController: NSWindowController {
         divider.boxType = .separator
         divider.widthAnchor.constraint(equalToConstant: 320).isActive = true
         stack.addArrangedSubview(divider)
-        stack.addArrangedSubview(footer("Tamp \(appVersion) · \(copyrightText())"))
+        stack.addArrangedSubview(versionFooter())
 
         let container = NSView()
         container.addSubview(stack)
@@ -131,10 +131,22 @@ final class SettingsWindowController: NSWindowController {
         return (column, check)
     }
 
-    private func footer(_ text: String) -> NSTextField {
-        let label = NSTextField(labelWithString: text)
-        label.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
-        label.textColor = .tertiaryLabelColor
+    /// Footer line "Tamp x.y.z · © …" where the version links to the GitHub
+    /// release page for the running build.
+    private func versionFooter() -> NSTextField {
+        let label = NSTextField(labelWithString: "")
+        label.allowsEditingTextAttributes = true // required for tappable .link attributes
+        label.isSelectable = true
+        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let text = NSMutableAttributedString(
+            string: "Tamp \(appVersion)",
+            attributes: [.font: font, .link: appReleaseURL()]
+        )
+        text.append(NSAttributedString(
+            string: " · \(copyrightText())",
+            attributes: [.font: font, .foregroundColor: NSColor.tertiaryLabelColor]
+        ))
+        label.attributedStringValue = text
         return label
     }
 

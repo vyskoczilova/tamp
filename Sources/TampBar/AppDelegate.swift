@@ -115,8 +115,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(settings)
 
         menu.addItem(.separator())
-        let version = NSMenuItem(title: "Version \(appVersion)", action: nil, keyEquivalent: "")
-        version.isEnabled = false
+        let version = NSMenuItem(title: "Version \(appVersion)", action: #selector(versionTapped), keyEquivalent: "")
+        version.target = self
+        version.toolTip = "Open the release notes on GitHub"
         menu.addItem(version)
         let quit = NSMenuItem(title: "Quit Tamp", action: #selector(quitTapped), keyEquivalent: "q")
         quit.target = self
@@ -203,6 +204,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         }
         settingsWindowController?.present()
+    }
+
+    @objc private func versionTapped() {
+        NSWorkspace.shared.open(appReleaseURL())
     }
 
     @objc private func quitTapped() {

@@ -55,6 +55,7 @@ echo "    sha256: $SHA256"
 echo "==> Publishing GitHub release ${TAG} on ${SRC_REPO}…"
 gh release create "$TAG" --repo "$SRC_REPO" \
     --title "Tamp ${VERSION}" \
+    --generate-notes \
     --notes "Universal (arm64 + x86_64) prebuilt binaries: \`tamp\` CLI + Tamp.app menu bar app. Install: \`brew install vyskoczilova/tap/tamp\`" \
     "$ZIP"
 
