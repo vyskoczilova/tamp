@@ -34,6 +34,28 @@
   "author": { "@type": "Person", "name": "Karolína Vyskočilová", "url": "https://kybernaut.cz" }
 }
 </script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Is Tamp free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — free and open source under the MIT license." } },
+    { "@type": "Question", "name": "What macOS version does Tamp require?",
+      "acceptedAnswer": { "@type": "Answer", "text": "macOS 13 Ventura or later. Homebrew installs universal binaries for Apple Silicon and Intel." } },
+    { "@type": "Question", "name": "Do I need Xcode to install Tamp?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Installing via Homebrew needs nothing extra; building from source needs only the Swift 6+ toolchain (Command Line Tools are enough)." } },
+    { "@type": "Question", "name": "How is Tamp different from Amphetamine or KeepingYouAwake?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows when another app is keeping your Mac awake." } },
+    { "@type": "Question", "name": "Does Tamp drain the battery?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Keep-awake itself is Apple's native caffeinate; Tamp adds a menu bar icon and a lightweight in-process check for external keep-awake activity." } },
+    { "@type": "Question", "name": "Can Tamp keep only the display awake?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — display, system and disk sleep are independent, per run (tamp on --display --no-system) or as saved preferences." } },
+    { "@type": "Question", "name": "How do I uninstall Tamp?",
+      "acceptedAnswer": { "@type": "Answer", "text": "brew uninstall tamp, delete /Applications/Tamp.app, and optionally remove ~/Library/Application Support/Tamp. The repo ships an uninstall.sh that does all of it." } }
+  ]
+}
+</script>
 <style>
   :root {
     --bg: #201209;
@@ -309,7 +331,7 @@
 
   <!-- ======= claims ======= -->
   <section class="wrap" id="why">
-    <p class="eyebrow rev">Why Tamp</p>
+    <h2 class="eyebrow rev">Why Tamp</h2>
     <div class="claims">
       <div class="rev">
         <h3>It tells the truth</h3>
@@ -334,7 +356,7 @@
 
   <!-- ======= CLI ======= -->
   <section class="wrap" id="cli">
-    <p class="eyebrow rev">Command line</p>
+    <h2 class="eyebrow rev">Command line</h2>
     <div class="term rev">
       <div class="term-head" aria-hidden="true"><i></i><i></i><i></i></div>
       <pre><span class="d">$</span> tamp on                <span class="c"># keep awake until turned off</span>
@@ -349,7 +371,7 @@
 
   <!-- ======= comparison ======= -->
   <section class="wrap" id="compare">
-    <p class="eyebrow rev">Compared</p>
+    <h2 class="eyebrow rev">Compared</h2>
     <div class="tablewrap rev">
       <table>
         <thead>
@@ -371,7 +393,7 @@
 
   <!-- ======= FAQ ======= -->
   <section class="wrap faq" id="faq">
-    <p class="eyebrow rev">Questions</p>
+    <h2 class="eyebrow rev">Questions</h2>
     <div class="rev">
       <details>
         <summary>Is Tamp free?</summary>

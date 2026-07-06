@@ -5,6 +5,8 @@
 ![macOS 13+](https://img.shields.io/badge/macOS-13%2B-blue)
 [![Homebrew](https://img.shields.io/badge/Homebrew-vyskoczilova%2Ftap%2Ftamp-orange)](https://github.com/vyskoczilova/homebrew-tap)
 
+**Website: [tamp.kybernaut.cz](https://tamp.kybernaut.cz)**
+
 **Tamp is a free, open-source macOS menu bar app and CLI that keeps your Mac
 awake — a lightweight wrapper around Apple's built-in `caffeinate`. Unlike
 other keep-awake tools, Tamp also detects when *another* app is caffeinating
