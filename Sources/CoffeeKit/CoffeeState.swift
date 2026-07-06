@@ -89,3 +89,32 @@ public struct CoffeeState: Codable, Equatable, Sendable {
         return .onIndefinite
     }
 }
+
+/// Machine-readable status snapshot for scripting (`status --json`). Wraps the
+/// raw state with the resolved phase so consumers see external caffeination
+/// too, without reimplementing the phase logic.
+public struct StatusReport: Codable, Equatable, Sendable {
+    public let state: CoffeeState
+    /// One of "off", "onIndefinite", "onTimed", "externallyActive".
+    public let phase: String
+    /// Whole seconds left in a timed session, nil otherwise.
+    public let remainingSeconds: Int?
+
+    public init(state: CoffeeState, systemActive: Bool, now: Date = Date()) {
+        self.state = state
+        switch state.phase(systemActive: systemActive, now: now) {
+        case .off:
+            phase = "off"
+            remainingSeconds = nil
+        case .onIndefinite:
+            phase = "onIndefinite"
+            remainingSeconds = nil
+        case .onTimed(let remaining):
+            phase = "onTimed"
+            remainingSeconds = Int(remaining.rounded())
+        case .externallyActive:
+            phase = "externallyActive"
+            remainingSeconds = nil
+        }
+    }
+}

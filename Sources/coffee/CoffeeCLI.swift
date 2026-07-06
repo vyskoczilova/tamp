@@ -106,7 +106,8 @@ struct Status: ParsableCommand {
     func run() throws {
         let state = CaffeinateController().status()
         if json {
-            let data = try JSONEncoder.coffee.encode(state)
+            let report = StatusReport(state: state, systemActive: SystemAssertions.isCaffeinated())
+            let data = try JSONEncoder.coffee.encode(report)
             print(String(decoding: data, as: UTF8.self))
         } else {
             print(describe(state, systemActive: SystemAssertions.isCaffeinated()))

@@ -137,6 +137,15 @@ if case .onTimed(let r) = timed.phase(now: nowState) {
 check(CoffeeState.inactive().phase() == .off, "inactive → phase off")
 check(CoffeeState(active: true).phase() == .onIndefinite, "active, no endsAt → phase onIndefinite")
 
+print("StatusReport")
+let extReport = StatusReport(state: .inactive(), systemActive: true)
+check(extReport.phase == "externallyActive", "inactive + systemActive → externallyActive")
+check(extReport.remainingSeconds == nil, "externallyActive → nil remaining")
+let timedReport = StatusReport(state: timed, systemActive: false, now: nowState)
+check(timedReport.phase == "onTimed", "timed → onTimed")
+check(timedReport.remainingSeconds.map { abs($0 - 600) <= 1 } == true, "timed → ≈600s remaining")
+check(StatusReport(state: .inactive(), systemActive: false).phase == "off", "inactive → off")
+
 print("")
 if failures == 0 {
     print("All checks passed.")
