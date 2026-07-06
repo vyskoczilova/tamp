@@ -26,9 +26,16 @@ VERSION="${VERSION_ARG:-$(cat "$ROOT/VERSION" 2>/dev/null || echo "0.0.0")}"
 BUILD_DIR="$ROOT/build"
 APP="$BUILD_DIR/$APP_NAME.app"
 
-echo "==> Building release binary… (v${VERSION})"
-swift build -c release --package-path "$ROOT"
-BIN="$ROOT/.build/release/TampBar"
+# make-release.sh assembles the bundle around a prebuilt universal binary; a
+# plain run builds the native-arch binary itself.
+if [[ -n "${TAMP_BIN_OVERRIDE:-}" ]]; then
+    echo "==> Using prebuilt binary: $TAMP_BIN_OVERRIDE (v${VERSION})"
+    BIN="$TAMP_BIN_OVERRIDE"
+else
+    echo "==> Building release binary… (v${VERSION})"
+    swift build -c release --package-path "$ROOT"
+    BIN="$ROOT/.build/release/TampBar"
+fi
 
 echo "==> Assembling $APP …"
 rm -rf "$APP"
