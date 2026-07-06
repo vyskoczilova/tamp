@@ -1,8 +1,10 @@
 # Tamp
 
-Keep your Mac awake — a small, Raycast-free menu bar app plus a terminal CLI,
-both built around macOS's built-in `caffeinate`. Named after the coffee tamper
-(and the menu bar icon that goes with it).
+Keep your Mac awake — a small menu bar app plus a terminal CLI, both built
+around macOS's built-in `caffeinate`. Tamp tracks its own keep-awake sessions
+*and* shows when another app is keeping the Mac awake, so the menu bar icon
+always reflects the machine's real state. Named after the coffee tamper (and
+the menu bar icon that goes with it).
 
 ## What it does
 
@@ -115,9 +117,9 @@ Scripts/uninstall.sh   # stops the session, unregisters login item, removes app/
 
 ## License & attribution
 
-MIT — see `LICENSE`. Original implementation; behavior was inspired by the
-MIT-licensed Raycast "Coffee" extension, but no code or artwork was copied —
-only the public behavior of Apple's `caffeinate` is wrapped.
+MIT — see `LICENSE`. Original implementation, inspired by the MIT-licensed
+Raycast "Coffee" extension — no code or artwork was copied; only the public
+behavior of Apple's `caffeinate` is wrapped.
 
 Icon artwork from the [Noun Project](https://thenounproject.com), used under
 [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/): icons by

@@ -8,7 +8,8 @@ struct Tamp: ParsableCommand {
         commandName: "tamp",
         abstract: """
         Keep your Mac awake. Karolína Vyskočilová's wrapper around the native \
-        macOS caffeinate command, inspired by the Raycast Coffee extension.
+        macOS caffeinate command — tracks its own sessions and shows when other \
+        apps keep the Mac awake. Inspired by the Raycast Coffee extension.
         """,
         version: appVersion,
         subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Status.self, Icon.self],

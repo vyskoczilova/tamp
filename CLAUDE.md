@@ -1,7 +1,8 @@
 # Tamp — project guide
 
-A Raycast-free macOS keep-awake tool (formerly "Coffee"). It wraps the built-in
-`/usr/bin/caffeinate` and ships **two products** over one shared engine:
+A macOS keep-awake tool (formerly "Coffee"). It wraps the built-in
+`/usr/bin/caffeinate`, monitors both its own sessions and keep-awake processes
+started by other apps, and ships **two products** over one shared engine:
 
 - **`tamp`** — terminal CLI
 - **`TampBar`** — menu bar app (runs as a background `.accessory`, no Dock icon)
@@ -168,6 +169,7 @@ Homebrew tap distribution.
 
 ## License
 
-MIT (see `LICENSE`). Behavior inspired by the MIT-licensed Raycast Coffee
-extension; no code or artwork copied (only Apple's `caffeinate` is wrapped).
-Icon artwork from the Noun Project (`Sources/TampBar/Icons/CREDITS.txt`).
+MIT (see `LICENSE`). Original implementation, inspired by the MIT-licensed
+Raycast Coffee extension — no code or artwork copied; only Apple's `caffeinate`
+is wrapped. Icon artwork from the Noun Project, CC BY 3.0
+(`Sources/TampBar/Icons/CREDITS.txt`).
