@@ -6,11 +6,25 @@ import CoffeeKit
 /// back to SF Symbols. Both the live status item and the settings preview go
 /// through here so they never disagree.
 enum IconRenderer {
+    /// Rendered images, keyed by style/state/size. The status item re-renders on
+    /// every poll tick, and reloading + emboldening the SVG each time is wasted
+    /// work — every distinct icon is rendered exactly once per app run.
+    @MainActor private static var cache: [String: NSImage] = [:]
+
     /// - active: caffeinated state. Custom styles ship an outline/filled pair, so
     ///   the inactive state loads the outline asset and the active state the
     ///   filled one (see `IconStyle.customAsset(active:)`).
     /// - pointSize: square render size in points (~18 for the menu bar).
+    @MainActor
     static func image(for style: IconStyle, active: Bool, pointSize: CGFloat) -> NSImage? {
+        let key = "\(style.rawValue)|\(active)|\(pointSize)"
+        if let cached = cache[key] { return cached }
+        let rendered = render(style: style, active: active, pointSize: pointSize)
+        cache[key] = rendered
+        return rendered
+    }
+
+    private static func render(style: IconStyle, active: Bool, pointSize: CGFloat) -> NSImage? {
         if let custom = customImage(style.customAsset(active: active), pointSize: pointSize) {
             // Some outline (inactive) variants have thin lines that read faintly
             // at 18px; thicken just those so the off-state stays legible.
