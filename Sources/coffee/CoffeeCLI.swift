@@ -136,6 +136,10 @@ struct Icon: ParsableCommand {
             throw ValidationError("Unknown style \"\(style)\". Choose one of: \(names).")
         }
         prefs.iconStyle = chosen
+        // Poke the shared state file so a running menu bar app notices the new
+        // style immediately — it watches the file, not UserDefaults, and an
+        // indefinite session has no poll timer to pick the change up otherwise.
+        StateStore().save(CaffeinateController().status())
         print("Icon style set to \(chosen.label).")
     }
 }
