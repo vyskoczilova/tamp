@@ -6,7 +6,6 @@ public enum DurationParser {
     public enum ParseError: Error, CustomStringConvertible {
         case empty
         case invalid(String)
-        case timeInPast(String)
         case tooLong(String)
 
         public var description: String {
@@ -15,8 +14,6 @@ public enum DurationParser {
                 return "No duration given. Examples: 30m, 1h, 1h30m, 90s."
             case .invalid(let s):
                 return "Could not parse \"\(s)\". Examples: 30m, 1h, 1h30m, 90s."
-            case .timeInPast(let s):
-                return "\"\(s)\" is not in the future today. Use HH:MM (24h), e.g. 17:30."
             case .tooLong(let s):
                 return "\"\(s)\" is too long. Sessions are capped at 7 days."
             }

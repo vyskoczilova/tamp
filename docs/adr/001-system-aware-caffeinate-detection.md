@@ -50,8 +50,9 @@ Claude Code config.
 
 - The status line can report "caffeinated by another app" in states where Coffee
   has no active session and therefore cannot offer a "time remaining" figure.
-- The menu's "Keep Awake" toggle is disabled when `externallyActive` (Coffee
-  can't turn off an external process, and the user would likely not expect it to).
+- The menu's "Keep Awake" toggle stays enabled when `externallyActive`: it
+  starts Coffee's own session alongside the external one (they coexist), and
+  Coffee still never touches the external process.
 - ~~`pgrep` is a subprocess call — cheap but not zero cost. It runs at most once
   per menu open and once per file-watcher event, never in a tight loop.~~
   *(Superseded — see Addendum.)*
