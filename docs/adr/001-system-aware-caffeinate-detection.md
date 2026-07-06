@@ -52,8 +52,19 @@ Claude Code config.
   has no active session and therefore cannot offer a "time remaining" figure.
 - The menu's "Keep Awake" toggle is disabled when `externallyActive` (Coffee
   can't turn off an external process, and the user would likely not expect it to).
-- `pgrep` is a subprocess call — cheap but not zero cost. It runs at most once
-  per menu open and once per file-watcher event, never in a tight loop.
+- ~~`pgrep` is a subprocess call — cheap but not zero cost. It runs at most once
+  per menu open and once per file-watcher event, never in a tight loop.~~
+  *(Superseded — see Addendum.)*
 - If a future need arises for finer-grained assertion introspection (e.g.
   identifying *which* app is caffeinating), IOKit via a C target in Package.swift
   is the right next step.
+
+## Addendum (2026-07-06) — pgrep replaced by libproc
+
+The menu bar app polls this check every 5 s while inactive, so the subprocess
+cost was ~17k fork/execs a day. `proc_listallpids` + `proc_name` turned out to
+be callable from plain Swift (`import Darwin`) — the "needs a C shim" concern
+that originally favored `pgrep` applied to IOKit's assertion APIs, not to
+libproc. `SystemAssertions.isCaffeinated()` now scans the process list
+in-process; the decision itself (passive, name-based, read-only detection) is
+unchanged.

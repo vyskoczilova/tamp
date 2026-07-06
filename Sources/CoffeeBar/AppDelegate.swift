@@ -73,10 +73,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if let interval {
             if refreshTimer == nil || refreshTimer?.timeInterval != interval {
                 refreshTimer?.invalidate()
-                refreshTimer = Timer.scheduledTimer(
+                let timer = Timer.scheduledTimer(
                     timeInterval: interval, target: self, selector: #selector(refreshTick),
                     userInfo: nil, repeats: true
                 )
+                // Nothing here is deadline-critical — let the system coalesce
+                // wakeups instead of firing on the exact tick (battery).
+                timer.tolerance = min(2, interval * 0.2)
+                refreshTimer = timer
             }
         } else {
             refreshTimer?.invalidate()
