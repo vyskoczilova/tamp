@@ -1,25 +1,23 @@
 # Tamp
 
-Keep your Mac awake — a small menu bar app plus a terminal CLI, both built
-around macOS's built-in `caffeinate`. Tamp tracks its own keep-awake sessions
-*and* shows when another app is keeping the Mac awake, so the menu bar icon
-always reflects the machine's real state. Named after the coffee tamper (and
-the menu bar icon that goes with it).
+[![Latest release](https://img.shields.io/github/v/release/vyskoczilova/tamp)](https://github.com/vyskoczilova/tamp/releases)
+[![License: MIT](https://img.shields.io/github/license/vyskoczilova/tamp)](LICENSE)
+![macOS 13+](https://img.shields.io/badge/macOS-13%2B-blue)
+[![Homebrew](https://img.shields.io/badge/Homebrew-vyskoczilova%2Ftap%2Ftamp-orange)](https://github.com/vyskoczilova/homebrew-tap)
 
-## What it does
+**Tamp is a free, open-source macOS menu bar app and CLI that keeps your Mac
+awake — a lightweight wrapper around Apple's built-in `caffeinate`. Unlike
+other keep-awake tools, Tamp also detects when *another* app is caffeinating
+your Mac and reflects the machine's real state in the menu bar.**
 
-- **Toggle** keep-awake on/off
-- **Caffeinate for** a duration (`30m`, `1h`, `1h30m`, `90s`; capped at 7 days)
-  or **until** a clock time (`17:30`)
-- Independently prevent **display / system / disk** sleep
-- A menu bar icon that reflects the current state, with a selectable icon style
-  including coffee **brewing concepts** (tamper, pour-over, filter, pot)
-- A `tamp` CLI and the menu bar app share one source of truth, so changing
-  state in one is reflected in the other
-- The icon and status also reflect **external caffeination** — if another tool
-  (e.g. Claude Code hooks) is keeping the Mac awake, Tamp shows it
+<p align="center">
+  <img src="Assets/tamp-menu-bar.png" width="48%" alt="Tamp's menu bar dropdown showing the state line 'On — caffeinated by another app'">
+  <img src="Assets/tamp-settings.png" width="48%" alt="Tamp Settings panel: Launch at Login, display/system/disk sleep toggles, and icon style picker">
+</p>
 
-## Install (Homebrew)
+Named after the coffee tamper (and the menu bar icon that goes with it).
+
+## Install
 
 ```sh
 brew install vyskoczilova/tap/tamp
@@ -32,32 +30,38 @@ cp -R "$(brew --prefix tamp)/Tamp.app" /Applications/
 open /Applications/Tamp.app
 ```
 
-## Build from source
+**Requirements:** macOS 13 Ventura or later. Homebrew installs universal
+binaries (Apple Silicon + Intel); no Xcode or developer tools needed.
 
-Requires the Swift toolchain (Swift 6+). No Xcode needed.
+## What it does
 
-```sh
-swift build -c release
-```
+- **Shows the truth about your Mac's sleep** — if any other tool (Amphetamine,
+  a script, Claude Code hooks…) runs `caffeinate`, Tamp's icon and status say
+  "On — caffeinated by another app"
+- **Toggle** keep-awake on/off from the menu bar or with `tamp toggle`
+- **Caffeinate for** a duration (`30m`, `1h`, `1h30m`, `90s`; capped at 7 days)
+  or **until** a clock time (`17:30`)
+- Independently prevent **display / system / disk** sleep
+- The `tamp` CLI and the menu bar app share one source of truth — change state
+  in one and the other reflects it immediately
+- Selectable menu bar icon styles, including coffee **brewing concepts**
+  (tamper, pour-over, filter, pot)
 
-Binaries land in `.build/release/`:
+## How it compares
 
-- `tamp` — the CLI
-- `TampBar` — the menu bar app (runs as a background "accessory", no Dock icon)
+|                                             | Tamp     | Amphetamine       | KeepingYouAwake | Caffeine |
+| ------------------------------------------- | :------: | :---------------: | :-------------: | :------: |
+| Menu bar app                                 | ✅       | ✅                | ✅              | ✅       |
+| CLI sharing state with the app               | ✅       | ❌                | ❌              | ❌       |
+| Shows when *another* app keeps the Mac awake | ✅       | ❌                | ❌              | ❌       |
+| Keep awake until a specific time             | ✅       | ✅                | ❌              | ❌       |
+| Timed sessions (durations)                   | ✅       | ✅                | ✅              | ✅       |
+| Homebrew install                             | ✅ tap   | ❌ App Store      | ✅ cask         | ✅ cask  |
+| Open source                                  | ✅ MIT   | ❌ (free, closed) | ✅ MIT          | ✅ MIT   |
 
-Package the menu bar app as a real `Tamp.app` bundle (ad-hoc signed, no Dock
-icon) and run it like any other app:
-
-```sh
-Scripts/make-app.sh --install   # builds build/Tamp.app, installs to /Applications, launches
-```
-
-A coffee-tamper icon appears in the menu bar. To start it automatically at
-login, click the icon → **Settings…** → **Launch at Login** (uses
-`SMAppService`; the app must live in `/Applications`).
-
-You can also run the bare binary without bundling — `.build/release/TampBar &` —
-but then the "Launch at Login" toggle is disabled (it needs a real `.app`).
+*Based on each project's published documentation as of July 2026. Amphetamine
+offers an extensive trigger/automation system that Tamp doesn't attempt to
+match — if you need that, use Amphetamine.*
 
 ## CLI usage
 
@@ -91,6 +95,65 @@ libproc, in-process) for any external caffeinate keeping the Mac awake. If one
 exists, the icon and status line show "On — caffeinated by another app" —
 read-only, Tamp never touches external processes. See
 `docs/adr/001-system-aware-caffeinate-detection.md`.
+
+## FAQ
+
+**Is Tamp free?**
+Yes — free and open source under the MIT license.
+
+**What macOS version does Tamp require?**
+macOS 13 Ventura or later. The Homebrew formula ships universal binaries for
+Apple Silicon and Intel Macs.
+
+**Do I need Xcode?**
+No. Installing via Homebrew needs nothing extra. Building from source needs
+only the Swift 6+ toolchain (Command Line Tools are enough).
+
+**How is Tamp different from Amphetamine or KeepingYouAwake?**
+Tamp ships both a CLI and a menu bar app that share one state, and it uniquely
+shows when *another* app is keeping your Mac awake instead of pretending the
+machine is free to sleep.
+
+**Does Tamp drain my battery?**
+No. Keep-awake itself is Apple's native `caffeinate`; Tamp's own footprint is
+a menu bar icon plus a lightweight in-process check (no subprocesses) that
+notices external keep-awake activity while idle.
+
+**Can I keep only the display awake (or only the system)?**
+Yes — display, system, and disk sleep are controlled independently, per run
+(`tamp on --display --no-system`) or as saved preferences in the app's
+Settings.
+
+**Where does Tamp store its state?**
+`~/Library/Application Support/Tamp/state.json` plus a small preferences
+suite (`cz.kybernaut.tamp`). `Scripts/uninstall.sh` removes both.
+
+## Build from source
+
+Requires the Swift toolchain (Swift 6+). No Xcode needed.
+
+```sh
+swift build -c release
+```
+
+Binaries land in `.build/release/`:
+
+- `tamp` — the CLI
+- `TampBar` — the menu bar app (runs as a background "accessory", no Dock icon)
+
+Package the menu bar app as a real `Tamp.app` bundle (ad-hoc signed, no Dock
+icon) and run it like any other app:
+
+```sh
+Scripts/make-app.sh --install   # builds build/Tamp.app, installs to /Applications, launches
+```
+
+A coffee-tamper icon appears in the menu bar. To start it automatically at
+login, click the icon → **Settings…** → **Launch at Login** (uses
+`SMAppService`; the app must live in `/Applications`).
+
+You can also run the bare binary without bundling — `.build/release/TampBar &` —
+but then the "Launch at Login" toggle is disabled (it needs a real `.app`).
 
 ## Tests
 
