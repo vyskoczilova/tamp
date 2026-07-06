@@ -1,14 +1,34 @@
-Menu bar icon artwork — from The Noun Project (https://thenounproject.com).
-Noun Project icons are licensed CC BY 3.0; attribute the creator (or hold a
-Noun Project license) before distributing. Filenames keep the original noun IDs.
+Menu bar icon artwork — from the Noun Project (https://thenounproject.com),
+used under the Creative Commons Attribution license, CC BY 3.0
+(https://creativecommons.org/licenses/by/3.0/). Filenames keep the original
+noun IDs; look any icon up at https://thenounproject.com/icon/<id>/.
 
-Each custom style ships an outline (inactive) + filled (active) pair:
+Each style ships an outline (inactive) + filled (active) pair by one creator:
 
-  Mug         noun-coffee-7693726 (outline)  / noun-coffee-7693728 (filled)
-  To-Go       noun-coffee-8248581 (outline)  / noun-coffee-8248582 (filled)
-  Pour-Over   noun-hario-v60-pour-over-1025640 / -1025641 (filled)
-  Filter      noun-coffee-filter-7855404 (outline) / -7855449 (filled)
-  Pot         noun-coffee-pot-6809962 (outline) / -6832059 (filled)
-  Tamper      noun-coffee-tamper-7366163 (outline) / -8021081 (filled)
+  Mug        "Coffee" by Mila Karmila
+             https://thenounproject.com/creator/milaart/
+             noun-coffee-7693726 (outline) / noun-coffee-7693728 (filled)
 
-Look up each ID at https://thenounproject.com/icon/<id>/ for the creator's name.
+  To-Go      "Coffee" by Styfico
+             https://thenounproject.com/creator/styfico/
+             noun-coffee-8248581 (outline) / noun-coffee-8248582 (filled)
+
+  Pour-Over  "Hario V60 Pour Over" by mikicon
+             https://thenounproject.com/creator/mikicon/
+             noun-hario-v60-pour-over-1025640 (outline) / -1025641 (filled)
+
+  Filter     "Coffee Filter" by erix subyarko
+             https://thenounproject.com/creator/erix-subyarko/
+             noun-coffee-filter-7855404 (outline) / -7855449 (filled)
+
+  Pot        "Coffee Pot" by little_dipper_studio
+             https://thenounproject.com/creator/armanrco35/
+             noun-coffee-pot-6809962 (outline) / -6832059 (filled)
+
+  Tamper     "Coffee Tamper" by Side Project
+             https://thenounproject.com/creator/Side_Project/
+             noun-coffee-tamper-7366163 (outline) / -8021081 (filled)
+
+The SVG files are unmodified. At render time the app scales them, tints them
+as template images, and slightly thickens some outline variants for menu bar
+legibility (see IconRenderer.swift).

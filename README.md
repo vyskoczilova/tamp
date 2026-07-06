@@ -117,5 +117,9 @@ Scripts/uninstall.sh   # stops the session, unregisters login item, removes app/
 
 MIT — see `LICENSE`. Original implementation; behavior was inspired by the
 MIT-licensed Raycast "Coffee" extension, but no code or artwork was copied —
-only the public behavior of Apple's `caffeinate` is wrapped. Icon artwork from
-the Noun Project (see `Sources/TampBar/Icons/CREDITS.txt`).
+only the public behavior of Apple's `caffeinate` is wrapped.
+
+Icon artwork from the [Noun Project](https://thenounproject.com), used under
+[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/): icons by
+Mila Karmila, Styfico, mikicon, erix subyarko, little_dipper_studio, and
+Side Project — per-icon details in `Sources/TampBar/Icons/CREDITS.txt`.

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Cut a Tamp release: universal binaries → zip → GitHub release on the public
-# tap repo → formula bump. The source repo is private, so release assets are
-# published on the tap repo (where brew can download them).
+# Cut a Tamp release: universal binaries → zip → GitHub release on the source
+# repo → formula bump in the tap repo.
 #
-# Requires: gh (authenticated), push access to the tap repo.
+# Requires: gh (authenticated), push access to both repos, a clean pushed main.
 #
 # Usage:
 #   Scripts/make-release.sh           # version from the VERSION file
@@ -12,6 +11,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="${1:-$(cat "$ROOT/VERSION")}"
+SRC_REPO="vyskoczilova/tamp"
 TAP_REPO="vyskoczilova/homebrew-tap"
 TAG="v${VERSION}"
 STAGE="$ROOT/build/release-stage"
@@ -52,8 +52,8 @@ SHA256="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 echo "    $ZIP"
 echo "    sha256: $SHA256"
 
-echo "==> Publishing GitHub release ${TAG} on ${TAP_REPO}…"
-gh release create "$TAG" --repo "$TAP_REPO" \
+echo "==> Publishing GitHub release ${TAG} on ${SRC_REPO}…"
+gh release create "$TAG" --repo "$SRC_REPO" \
     --title "Tamp ${VERSION}" \
     --notes "Universal (arm64 + x86_64) prebuilt binaries: \`tamp\` CLI + Tamp.app menu bar app. Install: \`brew install vyskoczilova/tap/tamp\`" \
     "$ZIP"
@@ -62,7 +62,7 @@ echo "==> Bumping Formula/tamp.rb in ${TAP_REPO}…"
 TAPDIR="$(mktemp -d)"
 gh repo clone "$TAP_REPO" "$TAPDIR" -- --depth 1 --quiet
 sed -i '' \
-    -e "s|^  url \".*\"|  url \"https://github.com/${TAP_REPO}/releases/download/${TAG}/tamp-${VERSION}-macos.zip\"|" \
+    -e "s|^  url \".*\"|  url \"https://github.com/${SRC_REPO}/releases/download/${TAG}/tamp-${VERSION}-macos.zip\"|" \
     -e "s|^  sha256 \".*\"|  sha256 \"${SHA256}\"|" \
     -e "s|^  version \".*\"|  version \"${VERSION}\"|" \
     "$TAPDIR/Formula/tamp.rb"
