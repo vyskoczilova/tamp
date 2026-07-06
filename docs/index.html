@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tamp — keep your Mac awake</title>
+<meta name="description" content="Tamp is a free, open-source macOS menu bar app and CLI that keeps your Mac awake — and the only one that shows when another app is doing it.">
+<link rel="canonical" href="https://tamp.kybernaut.cz/">
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200"><rect width="1200" height="1200" rx="240" fill="%23201209"/><g transform="translate(180,180) scale(0.7)" fill="%23f5ecdf"><path d="m852 959.95c-59.672-0.046875-108.05-48.422-108-108.14 0-14.766 3.0469-29.344 8.9062-42.891l144.32-331.82c71.203-164.16-4.125-354.98-168.28-426.19-164.16-71.203-354.98 4.125-426.19 168.28-35.672 82.266-35.672 175.64 0 257.86l144.32 331.87c23.719 54.75-1.4062 118.41-56.203 142.13-13.547 5.8594-28.125 8.9062-42.891 8.9062-99.375 0.09375-179.9 80.625-180 180 0 19.875 16.125 36 36 36h792c19.875 0 36-16.125 36-36-0.09375-99.375-80.625-179.9-180-180zm-252-864c45.703-0.046875 90.609 12.375 129.74 36-39.188 23.578-84.047 36-129.74 36s-90.562-12.422-129.74-36c39.141-23.625 84.047-36.047 129.74-36zm-75.609 720h151.22c-10.266 50.438 1.5938 102.84 32.484 144h-216.19c30.938-41.156 42.75-93.562 32.484-144zm-278.21 288c15.281-43.125 56.062-71.953 101.81-72h504c45.75 0.046875 86.531 28.875 101.81 72z"/></g></svg>'>
+<link rel="apple-touch-icon" href="assets/icon-180.png">
+<meta property="og:title" content="Tamp — keep your Mac awake">
+<meta property="og:description" content="Free, open-source macOS menu bar app + CLI wrapping Apple's caffeinate. Shows when another app keeps your Mac awake.">
+<meta property="og:image" content="https://tamp.kybernaut.cz/assets/tamp-menu-bar.png">
+<meta property="og:url" content="https://tamp.kybernaut.cz/">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Tamp",
+  "operatingSystem": "macOS 13.0 or later",
+  "applicationCategory": "UtilitiesApplication",
+  "description": "Free, open-source macOS menu bar app and CLI that keeps your Mac awake by wrapping the built-in caffeinate. Uniquely shows when another app is keeping the Mac awake.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "license": "https://github.com/vyskoczilova/tamp/blob/main/LICENSE",
+  "softwareVersion": "1.0.4",
+  "downloadUrl": "https://github.com/vyskoczilova/tamp/releases",
+  "url": "https://tamp.kybernaut.cz/",
+  "sameAs": "https://github.com/vyskoczilova/tamp",
+  "screenshot": "https://tamp.kybernaut.cz/assets/tamp-menu-bar.png",
+  "author": { "@type": "Person", "name": "Karolína Vyskočilová", "url": "https://kybernaut.cz" }
+}
+</script>
+<style>
+  :root {
+    --bg: #201209;
+    --panel: #2d1c10;
+    --panel-2: #271707;
+    --line: rgba(228, 181, 132, 0.16);
+    --crema: #e4b584;
+    --crema-deep: #c8955e;
+    --cream: #f5ecdf;
+    --muted: #a98e77;
+    --bar: rgba(22, 12, 6, 0.88);
+    --menu: rgba(38, 24, 14, 0.97);
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, monospace;
+    --sys: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --display: "Young Serif", "Iowan Old Style", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--sys);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--crema); color: var(--bg); }
+  a { color: var(--crema); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+  :focus-visible { outline: 2px solid var(--crema); outline-offset: 3px; border-radius: 4px; }
+
+  /* ---------- the menu bar (signature: the nav IS the app) ---------- */
+  .menubar {
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; gap: 4px;
+    height: 40px; padding: 0 16px;
+    background: var(--bar);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,0.5);
+    font-size: 13.5px; font-weight: 500;
+    user-select: none;
+  }
+  .mb-item {
+    appearance: none; border: 0; background: transparent; color: var(--cream);
+    font: inherit; font-weight: 700; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 8px; line-height: 1;
+  }
+  .mb-item:hover, .mb-item[aria-expanded="true"] { background: rgba(245, 236, 223, 0.18); }
+  .mb-spacer { flex: 1; }
+  .mb-right { display: flex; align-items: center; gap: 14px; color: var(--cream); }
+  .mb-release { color: var(--cream); opacity: 0.7; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .mb-release:hover { opacity: 1; text-decoration: none; }
+  .tamp-glyph { width: 17px; height: 17px; fill: currentColor; display: block; }
+  .mb-clock { font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
+
+  .menu-pop {
+    position: fixed; top: 44px; left: 12px; z-index: 60;
+    min-width: 270px; padding: 5px;
+    background: var(--menu);
+    -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+    font-size: 13.5px;
+    display: none;
+  }
+  .menu-pop.open { display: block; animation: pop 0.14s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(-4px) scale(0.99); } }
+  .menu-pop .mi {
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    width: 100%; padding: 5px 10px; border: 0; background: none;
+    color: var(--cream); font: inherit; text-align: left;
+    border-radius: 7px; cursor: pointer; text-decoration: none;
+  }
+  .menu-pop .mi:hover { background: var(--crema); color: #2a180a; text-decoration: none; }
+  .menu-pop .mi .kbd { opacity: 0.55; font-size: 12.5px; }
+  .menu-pop .status { padding: 5px 10px; color: var(--muted); cursor: default; }
+  .menu-pop hr { border: 0; border-top: 1px solid var(--line); margin: 5px 10px; }
+
+  /* ---------- layout ---------- */
+  /* margin-left/right only: the shorthand `margin: 0 auto` would zero out
+     margin-top and outrank `section + section` (class beats type+type). */
+  .wrap { max-width: 960px; margin-left: auto; margin-right: auto; padding: 0 24px; }
+  section + section { margin-top: 4rem; }
+  .eyebrow {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--crema-deep); margin: 0 0 14px;
+  }
+
+  /* ---------- hero ---------- */
+  .hero { padding: 96px 0 0; text-align: center; position: relative; }
+  .hero::before {
+    content: ""; position: absolute; inset: -40px -200px auto;
+    height: 480px; pointer-events: none;
+    background: radial-gradient(ellipse 60% 55% at 50% 0%, rgba(228, 181, 132, 0.09), transparent 70%);
+  }
+  .hero h1 {
+    font-family: var(--display); font-weight: 400;
+    font-size: clamp(2.7rem, 7.5vw, 4.9rem);
+    line-height: 1.04; letter-spacing: -0.01em;
+    margin: 0 0 22px;
+  }
+  .hero h1 em { font-style: normal; color: var(--crema); }
+  .hero .def {
+    max-width: 620px; margin: 0 auto 34px; color: var(--muted); font-size: 1.09rem;
+  }
+  .hero .def strong { color: var(--cream); font-weight: 600; }
+
+  .install-row { display: flex; justify-content: center; align-items: stretch; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+  .brew {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: 12px; padding: 13px 18px;
+    font-family: var(--mono); font-size: 15px;
+  }
+  .brew .dollar { color: var(--crema-deep); user-select: none; }
+  .brew button {
+    appearance: none; border: 0; cursor: pointer;
+    background: var(--crema); color: #2a180a;
+    font: 600 12.5px var(--sys); padding: 6px 12px; border-radius: 7px;
+  }
+  .brew button:hover { background: var(--cream); }
+  .ghstar {
+    display: inline-flex; align-items: center; gap: 8px;
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 18px;
+    color: var(--cream); font-weight: 600; font-size: 15px;
+  }
+  .ghstar:hover { border-color: var(--crema); text-decoration: none; }
+  .hero .fine { color: var(--muted); font-size: 13.5px; margin: 0 0 52px; }
+
+  .shots { display: flex; gap: 4%; align-items: flex-start; }
+  .shots img {
+    width: 48%; height: auto; border-radius: 14px;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
+    border: 1px solid var(--line);
+  }
+
+  /* ---------- claims ---------- */
+  .claims { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+  .claims h3 { font-family: var(--display); font-weight: 400; font-size: 1.35rem; margin: 0 0 10px; }
+  .claims p { color: var(--muted); margin: 0; font-size: 0.98rem; }
+  .claims p code { font-family: var(--mono); font-size: 0.86em; color: var(--cream); }
+
+  /* ---------- terminal ---------- */
+  .term {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px;
+    overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+  .term-head { display: flex; gap: 7px; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+  .term-head i { width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+  .term-head i:first-child { background: #c66; }
+  .term pre {
+    margin: 0; padding: 22px 24px; overflow-x: auto;
+    font-family: var(--mono); font-size: 14.5px; line-height: 2;
+  }
+  .term .c { color: var(--muted); }
+  .term .d { color: var(--crema-deep); user-select: none; }
+  .term .o { color: var(--muted); }
+
+  /* ---------- table ---------- */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 0.95rem; }
+  th, td { padding: 13px 18px; text-align: center; border-bottom: 1px solid var(--line); }
+  tbody tr:last-child td { border-bottom: 0; }
+  th { font-size: 12.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td:first-child, th:first-child { text-align: left; }
+  td:first-child { color: var(--cream); }
+  td { color: var(--muted); }
+  col.tamp-col {}
+  .td-tamp { background: rgba(228, 181, 132, 0.07); color: var(--cream); }
+  .foot-note { color: var(--muted); font-size: 13.5px; margin-top: 14px; }
+
+  /* ---------- FAQ ---------- */
+  .faq details { border-bottom: 1px solid var(--line); }
+  .faq summary {
+    cursor: pointer; padding: 18px 0; font-weight: 600; font-size: 1.02rem;
+    list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  }
+  .faq summary::-webkit-details-marker { display: none; }
+  .faq summary::after { content: "+"; color: var(--crema-deep); font-size: 1.3rem; font-weight: 400; }
+  .faq details[open] summary::after { content: "–"; }
+  .faq details p { margin: 0 0 20px; color: var(--muted); max-width: 640px; }
+  .faq code { font-family: var(--mono); font-size: 0.86em; color: var(--cream); }
+
+  /* ---------- footer ---------- */
+  footer {
+    margin-top: 100px; padding: 36px 0 46px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: 13.5px;
+  }
+  footer .cols { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+
+  /* ---------- reveal ---------- */
+  .rev { opacity: 0; transform: translateY(14px); transition: opacity 0.55s ease, transform 0.55s ease; }
+  .rev.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .rev { opacity: 1; transform: none; transition: none; }
+    .menu-pop.open { animation: none; }
+  }
+
+  @media (max-width: 720px) {
+    .hero { padding-top: 64px; }
+    .shots { flex-direction: column; gap: 18px; }
+    .shots img { width: 100%; }
+    .claims { grid-template-columns: 1fr; gap: 28px; }
+    .mb-right .hide-sm { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ======= the menu bar: nav and demo in one ======= -->
+<header class="menubar" aria-label="Site navigation, styled as the macOS menu bar">
+  <button class="mb-item" id="tampBtn" aria-expanded="false" aria-controls="tampMenu" title="Tamp — try me">
+    <svg class="tamp-glyph" viewBox="0 0 1200 1200" aria-hidden="true">
+      <path id="glyphOutline" d="m852 959.95c-59.672-0.046875-108.05-48.422-108-108.14 0-14.766 3.0469-29.344 8.9062-42.891l144.32-331.82c71.203-164.16-4.125-354.98-168.28-426.19-164.16-71.203-354.98 4.125-426.19 168.28-35.672 82.266-35.672 175.64 0 257.86l144.32 331.87c23.719 54.75-1.4062 118.41-56.203 142.13-13.547 5.8594-28.125 8.9062-42.891 8.9062-99.375 0.09375-179.9 80.625-180 180 0 19.875 16.125 36 36 36h792c19.875 0 36-16.125 36-36-0.09375-99.375-80.625-179.9-180-180zm-122.26-828c-39.188 23.578-84.047 36-129.74 36s-90.562-12.422-129.74-36c79.828-48.047 179.68-48.047 259.5 0zm-360.98 316.4c-39.141-90.281-22.125-195.05 43.5-268.36 54.797 39 120.42 59.953 187.69 59.953 67.266 0.046875 132.89-20.906 187.69-59.953 65.625 73.266 82.641 178.08 43.5 268.36l-128.48 295.6h-205.31zm155.63 367.6h151.22c-10.266 50.438 1.5938 102.84 32.484 144h-216.19c30.938-41.156 42.75-93.562 32.484-144zm-278.21 288c15.281-43.125 56.062-71.953 101.81-72h504c45.75 0.046875 86.531 28.875 101.81 72z"/>
+      <path id="glyphFilled" style="display:none" d="m852 959.95c-59.672-0.046875-108.05-48.422-108-108.14 0-14.766 3.0469-29.344 8.9062-42.891l144.32-331.82c71.203-164.16-4.125-354.98-168.28-426.19-164.16-71.203-354.98 4.125-426.19 168.28-35.672 82.266-35.672 175.64 0 257.86l144.32 331.87c23.719 54.75-1.4062 118.41-56.203 142.13-13.547 5.8594-28.125 8.9062-42.891 8.9062-99.375 0.09375-179.9 80.625-180 180 0 19.875 16.125 36 36 36h792c19.875 0 36-16.125 36-36-0.09375-99.375-80.625-179.9-180-180zm-252-864c45.703-0.046875 90.609 12.375 129.74 36-39.188 23.578-84.047 36-129.74 36s-90.562-12.422-129.74-36c39.141-23.625 84.047-36.047 129.74-36zm-75.609 720h151.22c-10.266 50.438 1.5938 102.84 32.484 144h-216.19c30.938-41.156 42.75-93.562 32.484-144zm-278.21 288c15.281-43.125 56.062-71.953 101.81-72h504c45.75 0.046875 86.531 28.875 101.81 72z"/>
+    </svg>
+    Tamp
+  </button>
+  <span class="mb-spacer"></span>
+  <div class="mb-right">
+    <a class="mb-release" id="release" href="https://github.com/vyskoczilova/tamp/releases/latest">v1.0.4</a>
+    <span class="mb-clock" id="clock" aria-hidden="true"></span>
+  </div>
+</header>
+
+<nav class="menu-pop" id="tampMenu" aria-label="Tamp menu">
+  <div class="status" id="demoStatus">Off — your Mac can sleep normally.</div>
+  <hr>
+  <button class="mi" id="demoToggle">Keep Awake <span class="kbd">try it</span></button>
+  <hr>
+  <a class="mi" href="#install">Install</a>
+  <a class="mi" href="#why">Why Tamp</a>
+  <a class="mi" href="#cli">Command line</a>
+  <a class="mi" href="#compare">Compared</a>
+  <a class="mi" href="#faq">Questions</a>
+  <hr>
+  <a class="mi" href="https://github.com/vyskoczilova/tamp">Star on GitHub <span class="kbd">↗</span></a>
+  <a class="mi" href="https://github.com/vyskoczilova/tamp/releases/tag/v1.0.4">Version 1.0.4</a>
+</nav>
+
+<main>
+  <!-- ======= hero ======= -->
+  <section class="hero wrap" id="install">
+    <p class="eyebrow rev">Free &amp; open source · macOS 13+</p>
+    <h1 class="rev">Keep your Mac awake.<br><em>Know when something else does.</em></h1>
+    <p class="def rev">
+      Tamp is a menu bar app and CLI wrapping Apple's built-in
+      <strong>caffeinate</strong> — and the only keep-awake tool that shows when
+      <strong>another app</strong> is caffeinating your Mac.
+    </p>
+    <div class="install-row rev">
+      <div class="brew">
+        <span class="dollar">$</span>
+        <span id="brewCmd">brew install vyskoczilova/tap/tamp</span>
+        <button id="copyBtn" aria-label="Copy install command">Copy</button>
+      </div>
+      <a class="ghstar" href="https://github.com/vyskoczilova/tamp">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 .25a.75.75 0 0 1 .67.42l1.88 3.8 4.2.62a.75.75 0 0 1 .42 1.28l-3.04 2.96.72 4.18a.75.75 0 0 1-1.09.8L8 12.35l-3.76 1.97a.75.75 0 0 1-1.09-.79l.72-4.19L.83 6.37a.75.75 0 0 1 .42-1.28l4.2-.61L7.33.67A.75.75 0 0 1 8 .25z"/></svg>
+        Star on GitHub
+      </a>
+    </div>
+    <p class="fine rev">Universal binaries (Apple Silicon + Intel) · no Xcode needed · MIT</p>
+    <div class="shots rev">
+      <img src="assets/tamp-menu-bar.png" width="940" height="676"
+           alt="Tamp's dropdown in the macOS menu bar, its status line reading 'On — caffeinated by another app'">
+      <img src="assets/tamp-settings.png" width="936" height="916"
+           alt="Tamp's settings: Launch at Login, independent display, system and disk sleep toggles, and an icon style picker">
+    </div>
+  </section>
+
+  <!-- ======= claims ======= -->
+  <section class="wrap" id="why">
+    <p class="eyebrow rev">Why Tamp</p>
+    <div class="claims">
+      <div class="rev">
+        <h3>It tells the truth</h3>
+        <p>If any other tool — Amphetamine, a script, an AI agent's hooks — runs
+        <code>caffeinate</code>, Tamp's icon fills and the status says so. No more
+        wondering why the Mac won't sleep.</p>
+      </div>
+      <div class="rev">
+        <h3>One state, two faces</h3>
+        <p>The menu bar app and the <code>tamp</code> CLI share a single source of
+        truth. Toggle in the terminal, watch the icon change. Set a timer in the
+        menu, read it with <code>tamp status --json</code>.</p>
+      </div>
+      <div class="rev">
+        <h3>Nothing exotic</h3>
+        <p>Keep-awake is Apple's own <code>caffeinate</code>, wrapped — not
+        reimplemented. Display, system and disk sleep controlled independently.
+        MIT-licensed, ~1&nbsp;MB, no background daemon.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======= CLI ======= -->
+  <section class="wrap" id="cli">
+    <p class="eyebrow rev">Command line</p>
+    <div class="term rev">
+      <div class="term-head" aria-hidden="true"><i></i><i></i><i></i></div>
+      <pre><span class="d">$</span> tamp on                <span class="c"># keep awake until turned off</span>
+<span class="d">$</span> tamp for 2h            <span class="c"># … for two hours</span>
+<span class="d">$</span> tamp until 17:30       <span class="c"># … until half past five</span>
+<span class="d">$</span> tamp on --no-display   <span class="c"># let the screen sleep, keep the Mac up</span>
+<span class="d">$</span> tamp status
+<span class="o">☕️ On — caffeinated by another app.</span>
+<span class="d">$</span> tamp off               <span class="c"># yours stops; other apps' sessions are never touched</span></pre>
+    </div>
+  </section>
+
+  <!-- ======= comparison ======= -->
+  <section class="wrap" id="compare">
+    <p class="eyebrow rev">Compared</p>
+    <div class="tablewrap rev">
+      <table>
+        <thead>
+          <tr><th></th><th>Tamp</th><th>Amphetamine</th><th>KeepingYouAwake</th><th>Caffeine</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Menu bar app</td><td class="td-tamp">✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
+          <tr><td>CLI sharing state with the app</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Shows other apps' keep-awake</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Keep awake until a clock time</td><td class="td-tamp">✓</td><td>✓</td><td>—</td><td>—</td></tr>
+          <tr><td>Homebrew install</td><td class="td-tamp">✓ tap</td><td>App Store</td><td>✓ cask</td><td>✓ cask</td></tr>
+          <tr><td>Open source</td><td class="td-tamp">✓ MIT</td><td>—</td><td>✓ MIT</td><td>✓ MIT</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="foot-note rev">Based on each project's published documentation, July 2026. Amphetamine's
+    trigger system covers automation Tamp doesn't attempt — if you need that, use Amphetamine.</p>
+  </section>
+
+  <!-- ======= FAQ ======= -->
+  <section class="wrap faq" id="faq">
+    <p class="eyebrow rev">Questions</p>
+    <div class="rev">
+      <details>
+        <summary>Is Tamp free?</summary>
+        <p>Yes — free and open source under the MIT license.</p>
+      </details>
+      <details>
+        <summary>What macOS version does it require?</summary>
+        <p>macOS 13 Ventura or later. Homebrew installs universal binaries for Apple Silicon and Intel.</p>
+      </details>
+      <details>
+        <summary>Do I need Xcode?</summary>
+        <p>No. Installing via Homebrew needs nothing extra; building from source needs only the Swift 6+ toolchain (Command Line Tools are enough).</p>
+      </details>
+      <details>
+        <summary>How is it different from Amphetamine or KeepingYouAwake?</summary>
+        <p>Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows when <em>another</em> app is keeping your Mac awake instead of pretending the machine is free to sleep.</p>
+      </details>
+      <details>
+        <summary>Does it drain my battery?</summary>
+        <p>No. Keep-awake itself is Apple's native <code>caffeinate</code>; Tamp adds a menu bar icon and a lightweight in-process check that notices external keep-awake activity while idle.</p>
+      </details>
+      <details>
+        <summary>Can I keep only the display awake?</summary>
+        <p>Yes — display, system and disk sleep are independent, per run (<code>tamp on --display --no-system</code>) or as saved preferences in Settings.</p>
+      </details>
+      <details>
+        <summary>How do I uninstall it?</summary>
+        <p><code>brew uninstall tamp</code>, delete <code>/Applications/Tamp.app</code>, and optionally remove <code>~/Library/Application&nbsp;Support/Tamp</code>. The repo ships an <code>uninstall.sh</code> that does all of it, login item included.</p>
+      </details>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap cols">
+    <span>MIT · © 2026 <a href="https://kybernaut.cz">Karolína Vyskočilová</a></span>
+    <span><a href="https://github.com/vyskoczilova/tamp">GitHub</a> · <a href="https://github.com/vyskoczilova/tamp/releases">Releases</a> · <a href="https://github.com/vyskoczilova/tamp/blob/main/Sources/TampBar/Icons/CREDITS.txt">Icon credits (Noun Project, CC BY 3.0)</a></span>
+  </div>
+</footer>
+
+<script>
+  // Menu bar demo + nav
+  const btn = document.getElementById("tampBtn");
+  const menu = document.getElementById("tampMenu");
+  const outline = document.getElementById("glyphOutline");
+  const filled = document.getElementById("glyphFilled");
+  const demoStatus = document.getElementById("demoStatus");
+  const demoToggle = document.getElementById("demoToggle");
+  let awake = false;
+
+  function setMenu(open) {
+    menu.classList.toggle("open", open);
+    btn.setAttribute("aria-expanded", String(open));
+  }
+  btn.addEventListener("click", (e) => { e.stopPropagation(); setMenu(!menu.classList.contains("open")); });
+  document.addEventListener("click", (e) => { if (!menu.contains(e.target)) setMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
+  menu.querySelectorAll("a").forEach((a) => a.addEventListener("click", () => setMenu(false)));
+
+  demoToggle.addEventListener("click", () => {
+    awake = !awake;
+    outline.style.display = awake ? "none" : "";
+    filled.style.display = awake ? "" : "none";
+    demoStatus.textContent = awake ? "On — staying awake until turned off." : "Off — your Mac can sleep normally.";
+    demoToggle.firstChild.textContent = awake ? "Turn Off " : "Keep Awake ";
+  });
+
+  // Live clock, mac-style
+  const clock = document.getElementById("clock");
+  function tick() {
+    const d = new Date();
+    const days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    clock.textContent = `${days[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()} ${hh}:${mm}`;
+  }
+  tick(); setInterval(tick, 15000);
+
+  // Latest release, straight from GitHub (falls back to the baked-in tag)
+  fetch("https://api.github.com/repos/vyskoczilova/tamp/releases/latest")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((rel) => { if (rel && rel.tag_name) document.getElementById("release").textContent = rel.tag_name; })
+    .catch(() => {});
+
+  // Copy
+  const copyBtn = document.getElementById("copyBtn");
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(document.getElementById("brewCmd").textContent);
+      copyBtn.textContent = "Copied";
+      setTimeout(() => (copyBtn.textContent = "Copy"), 1600);
+    } catch { copyBtn.textContent = "⌘C"; }
+  });
+
+  // Reveal on scroll
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduced) {
+    document.querySelectorAll(".rev").forEach((el) => el.classList.add("in"));
+  } else {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); } });
+    }, { threshold: 0.12 });
+    document.querySelectorAll(".rev").forEach((el) => io.observe(el));
+  }
+</script>
+</body>
+</html>
