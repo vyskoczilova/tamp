@@ -60,7 +60,7 @@ public final class CaffeinateController {
     @discardableResult
     public func stop() -> CoffeeState {
         let current = store.loadRaw()
-        if let pid = current.pid, processIsAlive(pid) {
+        if let pid = current.pid, isTrackedCaffeinate(pid) {
             kill(pid, SIGTERM)
         }
         let inactive = CoffeeState.inactive(flags: current.flags)
@@ -83,7 +83,7 @@ public final class CaffeinateController {
     /// the persisted state to inactive.
     private func reconcile(_ state: CoffeeState) -> CoffeeState {
         guard state.active, let pid = state.pid else { return state }
-        if processIsAlive(pid) {
+        if isTrackedCaffeinate(pid) {
             return state
         }
         let corrected = CoffeeState.inactive(flags: state.flags)
@@ -91,8 +91,10 @@ public final class CaffeinateController {
         return corrected
     }
 
-    private func processIsAlive(_ pid: Int32) -> Bool {
-        // Signal 0 performs error checking without sending a signal.
-        kill(pid, 0) == 0 || errno == EPERM
+    /// PIDs are recycled (reboot, timer expiry), so a recorded PID must never be
+    /// trusted — let alone killed — unless the process behind it is still a
+    /// caffeinate.
+    private func isTrackedCaffeinate(_ pid: Int32) -> Bool {
+        SystemAssertions.processName(of: pid) == "caffeinate"
     }
 }

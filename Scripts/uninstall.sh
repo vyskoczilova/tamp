@@ -30,10 +30,12 @@ if ! $ASSUME_YES; then
 fi
 
 # 1. Stop our tracked caffeinate so we don't orphan a keep-awake process. We only
-#    ever kill the PID Coffee recorded — never every caffeinate on the system.
+#    ever kill the PID Coffee recorded — never every caffeinate on the system —
+#    and only if that PID still names a caffeinate (PIDs get recycled).
 if [[ -f "$STATE_FILE" ]]; then
     PID="$(plutil -extract pid raw -o - "$STATE_FILE" 2>/dev/null || true)"
-    if [[ -n "${PID:-}" && "$PID" =~ ^[0-9]+$ ]]; then
+    if [[ -n "${PID:-}" && "$PID" =~ ^[0-9]+$ ]] \
+        && [[ "$(ps -p "$PID" -o comm= 2>/dev/null)" == *caffeinate ]]; then
         echo "==> Stopping tracked caffeinate (pid $PID)…"
         kill "$PID" 2>/dev/null || true
     fi

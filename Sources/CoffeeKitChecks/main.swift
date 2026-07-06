@@ -75,6 +75,44 @@ let missing = StateStore(url: URL(fileURLWithPath: NSTemporaryDirectory())
     .appendingPathComponent("coffee-missing-\(UUID().uuidString).json"))
 check(missing.loadRaw().active == false, "missing file → inactive")
 
+print("CaffeinateController — PID identity")
+// A recorded PID pointing at a live NON-caffeinate process (this test runner
+// itself — simulating PID reuse after reboot/expiry) must reconcile to
+// inactive, and stop() must not signal it.
+let pidTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("coffee-pid-\(UUID().uuidString).json")
+let pidStore = StateStore(url: pidTmp)
+pidStore.save(CoffeeState(active: true, pid: getpid()))
+let pidController = CaffeinateController(store: pidStore)
+check(pidController.status().active == false, "reused PID (live non-caffeinate) reconciles to inactive")
+pidStore.save(CoffeeState(active: true, pid: getpid()))
+_ = pidController.stop() // surviving this call is the assertion
+check(true, "stop() with reused PID did not kill this process")
+try? FileManager.default.removeItem(at: pidTmp)
+
+print("CaffeinateController — lifecycle")
+let lifeTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("coffee-life-\(UUID().uuidString).json")
+let lifeController = CaffeinateController(store: StateStore(url: lifeTmp))
+do {
+    let started = try lifeController.start(duration: 60)
+    check(started.active && started.pid != nil, "start() records an active pid")
+    check(lifeController.status().active, "status() keeps a live session active")
+    let stopped = lifeController.stop()
+    check(stopped.active == false, "stop() deactivates")
+    if let pid = started.pid {
+        var gone = false
+        for _ in 0..<50 { // up to ~1s for SIGTERM to land
+            if kill(pid, 0) != 0 { gone = true; break }
+            usleep(20_000)
+        }
+        check(gone, "tracked caffeinate is gone after stop()")
+    }
+} catch {
+    check(false, "lifecycle start() threw: \(error)")
+}
+try? FileManager.default.removeItem(at: lifeTmp)
+
 print("CoffeeState")
 let nowState = Date()
 let timed = CoffeeState(active: true, endsAt: nowState.addingTimeInterval(600))
