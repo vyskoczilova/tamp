@@ -65,6 +65,11 @@ public struct TampState: Codable, Equatable, Sendable {
             guard let expiresAt else { return false }
             return expiresAt <= now
         }
+
+        /// Shared "2 holds active" wording so the CLI and menu bar can't drift.
+        public static func countLabel(_ count: Int) -> String {
+            "\(count) hold\(count == 1 ? "" : "s") active"
+        }
     }
 
     public init(
@@ -108,6 +113,14 @@ public struct TampState: Codable, Equatable, Sendable {
         holders.filter { !$0.isExpired(now: now) }
     }
 
+    /// Whether Tamp itself wants caffeinate running — a manual session or at
+    /// least one live hold. This is THE definition of "on/stoppable": the
+    /// engine's settle logic and both front-ends consult it rather than
+    /// re-deriving it, so a future keep-awake source is added in one place.
+    public func keepsAwake(now: Date = Date()) -> Bool {
+        active || !liveHolders(now: now).isEmpty
+    }
+
     /// Seconds remaining for a timed session, or nil if indefinite/inactive.
     public func remaining(now: Date = Date()) -> TimeInterval? {
         guard active, let endsAt else { return nil }
@@ -130,14 +143,16 @@ public struct TampState: Codable, Equatable, Sendable {
     /// Pass `systemActive: SystemAssertions.isCaffeinated()` to get a phase
     /// that reflects the real OS state, including external caffeinate processes.
     /// A manual session outranks holds for display; holds outrank external.
-    public func phase(systemActive: Bool = false, now: Date = Date()) -> Phase {
+    /// `systemActive` is an autoclosure so the (expensive, full process-table)
+    /// external scan only runs when Tamp itself isn't keeping the Mac awake.
+    public func phase(systemActive: @autoclosure () -> Bool = false, now: Date = Date()) -> Phase {
         if active {
             if let remaining = remaining(now: now) { return .onTimed(remaining: remaining) }
             return .onIndefinite
         }
         let held = liveHolders(now: now).count
         if held > 0 { return .heldBy(count: held) }
-        return systemActive ? .externallyActive : .off
+        return systemActive() ? .externallyActive : .off
     }
 }
 

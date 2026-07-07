@@ -62,14 +62,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     /// Schedule a background poll whenever the icon can change without a file-
-    /// system event: timed sessions (expiry) and Tamp-inactive periods
-    /// (external caffeinate start/stop). Uses a short interval when inactive so
-    /// the icon tracks external processes in near-real-time.
+    /// system event: timed sessions and TTL holds (expiry), and fully-off
+    /// periods (external caffeinate start/stop). A steady own session or
+    /// TTL-less hold needs no poll — hold/release and CLI changes arrive via
+    /// the state-file watcher.
     private func rescheduleExpiryPoll(for state: TampState) {
-        let interval: TimeInterval? =
-            state.active && state.endsAt != nil ? 30 :   // timed session expiry
-            !state.active                       ? 5  :   // external caffeinate detection
-            nil                                           // indefinite own session — no poll needed
+        let interval: TimeInterval?
+        if state.active {
+            interval = state.endsAt != nil ? 30 : nil    // timed session expiry
+        } else if !state.liveHolders().isEmpty {
+            interval = state.liveHolders().contains { $0.expiresAt != nil }
+                ? 30                                     // TTL hold expiry
+                : nil
+        } else {
+            interval = 5                                 // external caffeinate detection
+        }
         if let interval {
             if refreshTimer == nil || refreshTimer?.timeInterval != interval {
                 refreshTimer?.invalidate()
@@ -99,11 +106,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(statusLine(phase: phase, state: state))
         menu.addItem(.separator())
 
-        // Holds count as "on" for the toggle: Turn Off hard-stops them too
-        // (controller.toggle() has matching semantics).
-        let canStop = state.active || !state.liveHolders().isEmpty
+        // keepsAwake covers holds too: Turn Off hard-stops them, matching
+        // controller.toggle(), which keys off the same predicate.
         let toggle = NSMenuItem(
-            title: canStop ? "Turn Off" : "Keep Awake",
+            title: state.keepsAwake() ? "Turn Off" : "Keep Awake",
             action: #selector(toggleTapped),
             keyEquivalent: ""
         )
@@ -137,7 +143,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .onIndefinite:
             title = "On — until turned off"
         case .heldBy(let count):
-            title = "On — \(count) hold\(count == 1 ? "" : "s") active"
+            title = "On — \(TampState.Holder.countLabel(count))"
         case .externallyActive:
             title = "On — caffeinated by another app"
         }
@@ -222,9 +228,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: - State file watching
 
     private func startWatchingState() {
-        // Ensure the file exists so we can open a descriptor to watch.
+        // Ensure the file exists so we can open a descriptor to watch. A no-op
+        // mutate creates/rewrites it without racing a concurrent hold/release.
         if !FileManager.default.fileExists(atPath: store.url.path) {
-            store.save(controller.status())
+            store.mutate { _ in }
         }
         let fd = open(store.url.path, O_EVTONLY)
         guard fd >= 0 else { return }

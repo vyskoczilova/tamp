@@ -27,10 +27,7 @@ public final class StateStore {
         var result = TampState.inactive()
         var coordError: NSError?
         coordinator.coordinate(readingItemAt: url, options: [], error: &coordError) { readURL in
-            guard let data = try? Data(contentsOf: readURL),
-                  let state = try? JSONDecoder.tamp.decode(TampState.self, from: data)
-            else { return }
-            result = state
+            result = self.readState(at: readURL)
         }
         if let coordError {
             kitLog.error("state read coordination failed: \(coordError, privacy: .public)")
@@ -51,18 +48,9 @@ public final class StateStore {
         var result = TampState.inactive()
         var coordError: NSError?
         coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { writeURL in
-            var state = TampState.inactive()
-            if let data = try? Data(contentsOf: writeURL),
-               let decoded = try? JSONDecoder.tamp.decode(TampState.self, from: data) {
-                state = decoded
-            }
+            var state = self.readState(at: writeURL)
             transform(&state)
-            do {
-                let data = try JSONEncoder.tamp.encode(state)
-                try data.write(to: writeURL, options: .atomic)
-            } catch {
-                kitLog.error("state mutate save failed: \(String(describing: error), privacy: .public)")
-            }
+            self.writeState(state, to: writeURL)
             result = state
         }
         if let coordError {
@@ -71,21 +59,38 @@ public final class StateStore {
         return result
     }
 
-    /// Persist the given state atomically. A failed save is serious — the
-    /// tracked caffeinate may already be gone/killed while the file still says
-    /// active — so it is logged, though status() self-heals on the next read.
+    /// Persist the given state atomically, replacing the file wholesale.
+    /// For snapshots of freshly built state only — NEVER load-then-save a
+    /// transition (a concurrent hold/release lands between the read and the
+    /// write and is silently clobbered); use `mutate` for those.
     public func save(_ state: TampState) {
         var coordError: NSError?
         coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { writeURL in
-            do {
-                let data = try JSONEncoder.tamp.encode(state)
-                try data.write(to: writeURL, options: .atomic)
-            } catch {
-                kitLog.error("state save failed: \(String(describing: error), privacy: .public)")
-            }
+            self.writeState(state, to: writeURL)
         }
         if let coordError {
             kitLog.error("state save coordination failed: \(coordError, privacy: .public)")
+        }
+    }
+
+    // MARK: - Shared (de)serialization — call only inside a coordination block.
+
+    private func readState(at url: URL) -> TampState {
+        guard let data = try? Data(contentsOf: url),
+              let state = try? JSONDecoder.tamp.decode(TampState.self, from: data)
+        else { return .inactive() }
+        return state
+    }
+
+    /// A failed save is serious — the tracked caffeinate may already be
+    /// gone/killed while the file still says active — so it is logged, though
+    /// status() self-heals on the next read.
+    private func writeState(_ state: TampState, to url: URL) {
+        do {
+            let data = try JSONEncoder.tamp.encode(state)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            kitLog.error("state save failed: \(String(describing: error), privacy: .public)")
         }
     }
 }

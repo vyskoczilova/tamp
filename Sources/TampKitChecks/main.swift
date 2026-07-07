@@ -20,6 +20,14 @@ var failures = 0
         print("  ok: \(message)")
     }
 }
+/// Poll up to ~1s for a process to exit (SIGTERM latency).
+@MainActor func processGone(_ pid: Int32) -> Bool {
+    for _ in 0..<50 {
+        if kill(pid, 0) != 0 { return true }
+        usleep(20_000)
+    }
+    return false
+}
 
 print("DurationParser")
 check((try? DurationParser.seconds(from: "30m")) == 1800, "30m → 1800")
@@ -111,12 +119,7 @@ do {
     let stopped = lifeController.stop()
     check(stopped.active == false, "stop() deactivates")
     if let pid = started.pid {
-        var gone = false
-        for _ in 0..<50 { // up to ~1s for SIGTERM to land
-            if kill(pid, 0) != 0 { gone = true; break }
-            usleep(20_000)
-        }
-        check(gone, "tracked caffeinate is gone after stop()")
+        check(processGone(pid), "tracked caffeinate is gone after stop()")
     }
 } catch {
     check(false, "lifecycle start() threw: \(error)")
@@ -173,6 +176,11 @@ check(mixed.phase() == .heldBy(count: 1), "holders-only state → phase heldBy(1
 check(mixed.phase(systemActive: true) == .heldBy(count: 1), "heldBy outranks externallyActive")
 check(TampState(active: true, holders: [TampState.Holder(id: "x")]).phase() == .onIndefinite,
       "manual session outranks holds in phase")
+check(mixed.keepsAwake(), "live hold → keepsAwake")
+check(TampState(active: true).keepsAwake(), "manual session → keepsAwake")
+check(!TampState.inactive().keepsAwake(), "inactive, no holds → not keepsAwake")
+check(!TampState(holders: [TampState.Holder(id: "x", expiresAt: Date(timeIntervalSinceNow: -1))]).keepsAwake(),
+      "only expired holds → not keepsAwake")
 
 print("StatusReport — holders")
 let heldReport = StatusReport(state: TampState(holders: [TampState.Holder(id: "x")]), systemActive: false)
@@ -207,12 +215,7 @@ do {
     let r2 = try refController.release("checks-b")
     check(r2.pid == nil && r2.holders.isEmpty, "last release clears the tracked pid")
     if let pid = firstPid {
-        var gone = false
-        for _ in 0..<50 {
-            if kill(pid, 0) != 0 { gone = true; break }
-            usleep(20_000)
-        }
-        check(gone, "caffeinate is gone after the last release")
+        check(processGone(pid), "caffeinate is gone after the last release")
     }
     let r3 = try refController.release("never-held")
     check(r3.active == false && r3.holders.isEmpty, "releasing an unknown id is a safe no-op")
@@ -253,10 +256,7 @@ do {
     _ = try surviveController.hold("survivor")
     if let pid = started.pid {
         kill(pid, SIGTERM)
-        for _ in 0..<50 {
-            if kill(pid, 0) != 0 { break }
-            usleep(20_000)
-        }
+        _ = processGone(pid)
     }
     let settled = surviveController.status()
     check(settled.active == false, "dead manual session reconciles to inactive")
@@ -305,12 +305,7 @@ let afterReleases = concController.status()
 check(afterReleases.holders.isEmpty && afterReleases.pid == nil,
       "concurrent releases drain to zero and clear the pid")
 if let pid = concPid {
-    var gone = false
-    for _ in 0..<50 {
-        if kill(pid, 0) != 0 { gone = true; break }
-        usleep(20_000)
-    }
-    check(gone, "shared caffeinate is gone after the last concurrent release")
+    check(processGone(pid), "shared caffeinate is gone after the last concurrent release")
 }
 try? FileManager.default.removeItem(at: concTmp)
 

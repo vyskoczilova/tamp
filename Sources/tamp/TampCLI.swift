@@ -201,14 +201,18 @@ struct Icon: ParsableCommand {
         // Poke the shared state file so a running menu bar app notices the new
         // style immediately — it watches the file, not UserDefaults, and an
         // indefinite session has no poll timer to pick the change up otherwise.
-        StateStore().save(CaffeinateController().status())
+        // A no-op mutate re-saves atomically without the load-then-save race
+        // that could clobber a concurrent hold/release.
+        StateStore().mutate { _ in }
         print("Icon style set to \(chosen.label).")
     }
 }
 
-/// Render a state as a one-line human summary.
-func describe(_ state: TampState, systemActive: Bool = false) -> String {
-    switch state.phase(systemActive: systemActive) {
+/// Render a state as a one-line human summary. `systemActive` is an
+/// autoclosure so the full process-table scan behind it only runs when the
+/// phase actually depends on it (state neither active nor held).
+func describe(_ state: TampState, systemActive: @autoclosure () -> Bool = false) -> String {
+    switch state.phase(systemActive: systemActive()) {
     case .off:
         return "☕️ Off — your Mac can sleep normally."
     case .onTimed(let remaining):
@@ -216,7 +220,7 @@ func describe(_ state: TampState, systemActive: Bool = false) -> String {
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
     case .heldBy(let count):
-        return "☕️ On — \(count) hold\(count == 1 ? "" : "s") active."
+        return "☕️ On — \(TampState.Holder.countLabel(count))."
     case .externallyActive:
         return "☕️ On — caffeinated by another app."
     }

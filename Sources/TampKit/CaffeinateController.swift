@@ -6,7 +6,7 @@ import Foundation
 /// Two independent things can want the Mac awake: the single manual session
 /// (`on`/`for`/`until`) and any number of named holds (`hold`/`release`). Both
 /// share one tracked caffeinate process; it runs while
-/// `active || !holders.isEmpty`. All decisions that depend on current state
+/// `TampState.keepsAwake` holds. All decisions that depend on current state
 /// (am I the first hold? the last release?) happen inside `StateStore.mutate`,
 /// so concurrent callers from different processes serialize safely.
 public final class CaffeinateController {
@@ -39,30 +39,15 @@ public final class CaffeinateController {
     @discardableResult
     public func start(duration seconds: Int? = nil, flags: SleepFlags? = nil) throws -> TampState {
         let effectiveFlags = flags ?? preferences.sleepFlags
-        var thrown: Error?
-        let state = store.mutate { state in
+        return try mutateState { state in
             // Replace any existing tracked process (manual or holder-spawned)
             // so the new flags/duration take effect.
-            if let pid = state.pid, self.isTrackedCaffeinate(pid) {
-                kill(pid, SIGTERM)
-            }
-            let now = Date()
-            state.holders.removeAll { $0.isExpired(now: now) }
-            do {
-                let pid = try self.spawnCaffeinate(flags: effectiveFlags, seconds: seconds)
-                state = TampState(
-                    active: true,
-                    pid: pid,
-                    endsAt: seconds.map { now.addingTimeInterval(TimeInterval($0)) },
-                    flags: effectiveFlags,
-                    holders: state.holders
-                )
-            } catch {
-                thrown = error
-            }
+            self.killTracked(&state)
+            state.pid = try self.spawnCaffeinate(flags: effectiveFlags, seconds: seconds)
+            state.active = true
+            state.endsAt = seconds.map { Date().addingTimeInterval(TimeInterval($0)) }
+            state.flags = effectiveFlags
         }
-        if let thrown { throw thrown }
-        return state
     }
 
     /// Register a named hold. Starts caffeinate if nothing is running yet;
@@ -72,18 +57,15 @@ public final class CaffeinateController {
     /// hold self-expire so a crashed caller can't pin the Mac awake forever.
     @discardableResult
     public func hold(_ id: String, ttl seconds: Int? = nil) throws -> TampState {
-        var thrown: Error?
-        let state = store.mutate { state in
+        try mutateState { state in
             let now = Date()
             state.holders.removeAll { $0.id == id }
             state.holders.append(TampState.Holder(
                 id: id,
                 expiresAt: seconds.map { now.addingTimeInterval(TimeInterval($0)) }
             ))
-            do { try self.settle(&state, now: now) } catch { thrown = error }
+            try self.settle(&state, now: now)
         }
-        if let thrown { throw thrown }
-        return state
     }
 
     /// Remove a named hold. Stops caffeinate only if this was the last hold
@@ -91,13 +73,10 @@ public final class CaffeinateController {
     /// (idempotent), so double-firing hooks are harmless.
     @discardableResult
     public func release(_ id: String) throws -> TampState {
-        var thrown: Error?
-        let state = store.mutate { state in
+        try mutateState { state in
             state.holders.removeAll { $0.id == id }
-            do { try self.settle(&state) } catch { thrown = error }
+            try self.settle(&state)
         }
-        if let thrown { throw thrown }
-        return state
     }
 
     /// Drop every hold — the escape hatch for a caller that died without
@@ -111,27 +90,26 @@ public final class CaffeinateController {
         }
     }
 
-    /// Persist new sleep preferences. If a session is live, restart it so the
-    /// flags take effect immediately while preserving any remaining time.
+    /// Persist new sleep preferences. If anything is live (manual session or
+    /// holds), bounce the tracked process so the flags take effect immediately
+    /// while preserving the session shape — remaining time and holds included.
     @discardableResult
     public func applyFlags(_ flags: SleepFlags) throws -> TampState {
         preferences.sleepFlags = flags
-        let current = status()
-        if current.active {
-            return try start(duration: current.remaining().map { Int($0) }, flags: flags)
-        }
-        guard !current.liveHolders().isEmpty else { return current }
-        // Holder-kept process: bounce it so the new flags apply.
-        var thrown: Error?
-        let state = store.mutate { state in
-            if let pid = state.pid, self.isTrackedCaffeinate(pid) {
-                kill(pid, SIGTERM)
-                state.pid = nil
+        return try mutateState { state in
+            try self.settle(&state) // reconcile first (prunes, self-heals)
+            guard state.keepsAwake() else { return }
+            self.killTracked(&state)
+            if state.active {
+                state.pid = try self.spawnCaffeinate(
+                    flags: flags,
+                    seconds: state.remaining().map { Int($0) }
+                )
+                state.flags = flags
+            } else {
+                try self.settle(&state) // holder respawn picks up the new prefs
             }
-            do { try self.settle(&state) } catch { thrown = error }
         }
-        if let thrown { throw thrown }
-        return state
     }
 
     /// Stop everything — the manual session AND all holds. An explicit user
@@ -140,9 +118,7 @@ public final class CaffeinateController {
     @discardableResult
     public func stop() -> TampState {
         store.mutate { state in
-            if let pid = state.pid, self.isTrackedCaffeinate(pid) {
-                kill(pid, SIGTERM)
-            }
+            self.killTracked(&state)
             state = TampState.inactive(flags: state.flags)
         }
     }
@@ -151,8 +127,7 @@ public final class CaffeinateController {
     /// holds) → stop it all; otherwise start an indefinite manual session.
     @discardableResult
     public func toggle() throws -> TampState {
-        let current = status()
-        if current.active || !current.liveHolders().isEmpty {
+        if status().keepsAwake() {
             return stop()
         }
         return try start()
@@ -167,6 +142,8 @@ public final class CaffeinateController {
     /// manual kill, recycled PID); a missing process respawned while holds
     /// remain (also how holds survive a timed session's `-t` expiry); a
     /// process nothing wants anymore killed.
+    /// Paired with `needsSettle` — a new drift condition here needs a matching
+    /// check there, or `status()` stops self-healing for that case.
     private func settle(_ state: inout TampState, now: Date = Date()) throws {
         state.holders.removeAll { $0.isExpired(now: now) }
         let pidLive = state.pid.map(isTrackedCaffeinate) == true
@@ -175,34 +152,43 @@ public final class CaffeinateController {
             state.endsAt = nil
             state.pid = nil
         }
-        let shouldRun = state.active || !state.holders.isEmpty
-        if shouldRun && !pidLive {
+        if state.keepsAwake(now: now) {
+            guard !pidLive else { return }
             // Only holds can reach here (a dead manual session was cleared
             // above): spawn indefinite, with the currently preferred flags.
             state.flags = preferences.sleepFlags
             state.pid = try spawnCaffeinate(flags: state.flags)
             state.endsAt = nil
-        } else if !shouldRun {
-            if let pid = state.pid, pidLive {
-                kill(pid, SIGTERM)
-            }
-            state.pid = nil
+        } else {
+            killTracked(&state)
             state.endsAt = nil
         }
     }
 
     /// Cheap pre-check so `status()` only takes write coordination when the
-    /// state actually drifted from reality.
+    /// state actually drifted from reality. Mirrors `settle`'s conditions.
     private func needsSettle(_ state: TampState, now: Date = Date()) -> Bool {
         if state.holders.contains(where: { $0.isExpired(now: now) }) { return true }
         let pidLive = state.pid.map(isTrackedCaffeinate) == true
-        let shouldRun = state.active || !state.holders.isEmpty
-        if shouldRun != pidLive { return true }
-        if !shouldRun && state.pid != nil { return true }
+        let wantsRun = state.keepsAwake(now: now)
+        if wantsRun != pidLive { return true }
+        if !wantsRun && state.pid != nil { return true }
         return false
     }
 
     // MARK: - Process management
+
+    /// `StateStore.mutate` with a throwing body — the spawn side effect can
+    /// throw, and the error must escape the non-throwing coordination closure.
+    @discardableResult
+    private func mutateState(_ body: (inout TampState) throws -> Void) throws -> TampState {
+        var thrown: Error?
+        let state = store.mutate { state in
+            do { try body(&state) } catch { thrown = error }
+        }
+        if let thrown { throw thrown }
+        return state
+    }
 
     /// Spawn a detached caffeinate and return its PID. Indefinite when
     /// `seconds` is nil.
@@ -218,6 +204,16 @@ public final class CaffeinateController {
         process.standardError = FileHandle.nullDevice
         try process.run()
         return process.processIdentifier
+    }
+
+    /// Kill the tracked process — after verifying it still names a caffeinate —
+    /// and forget it. The single home of the "never trust a recorded PID"
+    /// kill rule.
+    private func killTracked(_ state: inout TampState) {
+        if let pid = state.pid, isTrackedCaffeinate(pid) {
+            kill(pid, SIGTERM)
+        }
+        state.pid = nil
     }
 
     /// PIDs are recycled (reboot, timer expiry), so a recorded PID must never be
