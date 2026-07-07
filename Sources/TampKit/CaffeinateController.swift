@@ -47,16 +47,9 @@ public final class CaffeinateController {
         if args.isEmpty { args.append("-i") } // Never launch a no-op caffeinate.
         if let seconds { args.append(contentsOf: ["-t", String(seconds)]) }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: Self.caffeinatePath)
-        process.arguments = args
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-
         let state = TampState(
             active: true,
-            pid: process.processIdentifier,
+            pid: try spawnCaffeinate(arguments: args),
             endsAt: seconds.map { Date().addingTimeInterval(TimeInterval($0)) },
             flags: effectiveFlags
         )
@@ -64,13 +57,45 @@ public final class CaffeinateController {
         return state
     }
 
+    /// Keep awake for as long as another process runs (`caffeinate -w`). The
+    /// session is untimed (`-w` and `-t` never combine): caffeinate exits by
+    /// itself when the watched process does, and the dead-PID reconcile then
+    /// flips the state to inactive. The watched pid/name are recorded purely
+    /// for display — Tamp never signals or re-resolves the watched process.
+    @discardableResult
+    public func startWhile(pid watchedPID: pid_t, name: String?, flags: SleepFlags? = nil) throws -> TampState {
+        guard SystemAssertions.processName(of: watchedPID) != nil else {
+            throw ProcessResolver.ResolveError.noSuchPID(watchedPID)
+        }
+        stop() // Replace any existing session.
+
+        let effectiveFlags = flags ?? preferences.sleepFlags
+        var args = effectiveFlags.caffeinateArguments
+        if args.isEmpty { args.append("-i") } // Never launch a no-op caffeinate.
+        args.append(contentsOf: ["-w", String(watchedPID)])
+
+        let state = TampState(
+            active: true,
+            pid: try spawnCaffeinate(arguments: args),
+            flags: effectiveFlags,
+            watchedPID: watchedPID,
+            watchedName: name
+        )
+        store.save(state)
+        return state
+    }
+
     /// Persist new sleep preferences. If a session is live, restart it so the
-    /// flags take effect immediately while preserving any remaining time.
+    /// flags take effect immediately while preserving any remaining time — or,
+    /// for a while-app session, the watched process.
     @discardableResult
     public func applyFlags(_ flags: SleepFlags) throws -> TampState {
         preferences.sleepFlags = flags
         let current = status()
         guard current.active else { return current }
+        if let watchedPID = current.watchedPID {
+            return try startWhile(pid: watchedPID, name: current.watchedName, flags: flags)
+        }
         return try start(duration: current.remaining().map { Int($0) }, flags: flags)
     }
 
@@ -109,6 +134,17 @@ public final class CaffeinateController {
             return stop()
         }
         return try start()
+    }
+
+    /// Launch a detached caffeinate and return its PID.
+    private func spawnCaffeinate(arguments: [String]) throws -> pid_t {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: Self.caffeinatePath)
+        process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        try process.run()
+        return process.processIdentifier
     }
 
     // MARK: - Reconciliation

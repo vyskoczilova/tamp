@@ -12,7 +12,10 @@ struct Tamp: ParsableCommand {
         apps keep the Mac awake. Inspired by the Raycast Coffee extension.
         """,
         version: appVersion,
-        subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Add.self, Status.self, Icon.self],
+        subcommands: [
+            On.self, Off.self, Toggle.self, For.self, Until.self, While.self,
+            Add.self, Status.self, Icon.self,
+        ],
         defaultSubcommand: Status.self
     )
 }
@@ -115,6 +118,33 @@ struct Until: ParsableCommand {
     }
 }
 
+struct While: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "while",
+        abstract: "Keep awake while another app or process runs, e.g. 'tamp while Xcode'.",
+        discussion: """
+        The target is an exact process name (case-insensitive) or a PID. The \
+        session follows that specific process and ends when it exits — \
+        relaunching the app does not re-arm it. If several processes share the \
+        name, their PIDs are listed so you can pick one. (Process names longer \
+        than 32 characters are truncated by the system; use a PID for those.)
+        """
+    )
+    @Argument(help: "Process name (exact, case-insensitive) or PID.")
+    var target: [String]
+    @OptionGroup var overrides: SleepOverrides
+
+    func run() throws {
+        let joined = target.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+        guard !joined.isEmpty else { throw ValidationError("Give an app name or PID.") }
+        let resolved = try ProcessResolver.resolve(joined)
+        let state = try CaffeinateController().startWhile(
+            pid: resolved.pid, name: resolved.name, flags: overrides.resolved()
+        )
+        print(describe(state))
+    }
+}
+
 struct Add: ParsableCommand {
     static let configuration = CommandConfiguration(
         abstract: "Extend the current timed session, e.g. 'tamp add 15m'."
@@ -185,6 +215,8 @@ func describe(_ state: TampState, systemActive: Bool = false) -> String {
         return "☕️ On — \(DurationParser.format(remaining: remaining)) left\(until)."
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
+    case .onWhileApp(let name):
+        return "☕️ On — while \(name) runs."
     case .externallyActive:
         return "☕️ On — caffeinated by another app."
     }

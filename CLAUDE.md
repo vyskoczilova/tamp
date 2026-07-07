@@ -69,6 +69,7 @@ Sources/
 │   ├── CaffeinateController.swift  spawn/kill tracked caffeinate; reconcile state
 │   ├── TampState.swift             Codable state model (active/pid/endsAt/flags) + Phase + StatusReport
 │   ├── SystemAssertions.swift      libproc-based check for external caffeinate processes
+│   ├── ProcessResolver.swift       name/PID → live process for while-app sessions (-w)
 │   ├── StateStore.swift            read/write the shared state JSON (NSFileCoordinator)
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
 │   ├── Duration.swift              parse "1h30m"/"+15m"/bare-minutes and "until HH:MM" (7-day cap); clock/remaining formatting
@@ -90,7 +91,7 @@ it from both front-ends so they never drift.
 ### How the two products stay in sync
 
 - Shared state file: `~/Library/Application Support/Tamp/state.json`
-  (`{ active, pid, endsAt, flags }`).
+  (`{ active, pid, endsAt, flags, watchedPID?, watchedName? }`).
 - Shared preferences: `UserDefaults(suiteName: "cz.kybernaut.tamp")`.
 - Whoever acts spawns a detached `caffeinate` and records its PID; stopping kills
   exactly that PID — after verifying it still names a caffeinate (PID reuse).
@@ -106,7 +107,8 @@ it from both front-ends so they never drift.
   `TampState.Phase.externallyActive` is returned so both front-ends can display
   "caffeinated by another app". Tamp never kills or manages external processes.
   **Icon rule:** filled = any caffeinate active (`.onIndefinite`, `.onTimed`,
-  `.externallyActive`); outline = nothing running (`.off` only). Custom-art styles
+  `.onWhileApp`, `.externallyActive`); outline = nothing running (`.off` only).
+  Custom-art styles
   ship an outline (inactive) + filled (active) SVG pair, so the rule holds for
   them too — `IconStyle.customAsset(active:)` returns the right one.
 - `tamp status --json` emits a `StatusReport` envelope (state + resolved phase +
@@ -163,14 +165,14 @@ doubles as the integer-overflow guard.
 
 ## Roadmap (v2, not yet built)
 
-- `caffeinate -w <pid>` ("keep awake while app X runs")
 - Natural-language recurring schedules
 
 Done since v1.0.0: rename Coffee → Tamp; PID-identity safety; 7-day duration
 cap; libproc detection; icon render cache; JSON phase report; MIT license;
 Homebrew tap distribution; `-s`/`-u` flags (CLI `--ac`/`--wake`, settings
 toggles, v1.1.0); session extend + end-time display + opt-in end-of-session
-notification (v1.2.0).
+notification (v1.2.0); while-app sessions (`tamp while`, caffeinate `-w`,
+per-instance, v1.3.0).
 
 ## License
 

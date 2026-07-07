@@ -101,6 +101,7 @@ check(legacy.active == true, "legacy file decodes (active preserved)")
 check(legacy.pid == 555, "legacy pid preserved")
 check(legacy.flags.system == false && legacy.flags.disk == true, "legacy flag values preserved")
 check(legacy.flags.acPower == false && legacy.flags.wake == false, "missing new flags default to off")
+check(legacy.watchedPID == nil && legacy.watchedName == nil, "missing watched fields default to nil")
 try? FileManager.default.removeItem(at: legacyTmp)
 
 print("StateStore")
@@ -185,6 +186,73 @@ do {
     _ = extController.stop()
 }
 try? FileManager.default.removeItem(at: extTmp)
+
+print("ProcessResolver")
+let selfPID = getpid()
+check((try? ProcessResolver.resolve("\(selfPID)"))?.pid == selfPID, "resolve by PID finds this process")
+if let selfName = (try? ProcessResolver.resolve("\(selfPID)"))?.name {
+    let byName = try? ProcessResolver.resolve(selfName.uppercased())
+    check(byName != nil, "resolve by name is case-insensitive (or ambiguous, never silent)")
+}
+checkThrows("unknown name throws") {
+    _ = try ProcessResolver.resolve("no-such-process-\(UUID().uuidString.prefix(8))")
+}
+checkThrows("dead PID throws") { _ = try ProcessResolver.resolve("999999") }
+
+print("CaffeinateController — while-app lifecycle")
+let whileTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-while-\(UUID().uuidString).json")
+let whileController = CaffeinateController(store: StateStore(url: whileTmp))
+checkThrows("startWhile on a dead pid throws") {
+    _ = try whileController.startWhile(pid: 999_999, name: nil)
+}
+do {
+    let sleeper = Process()
+    sleeper.executableURL = URL(fileURLWithPath: "/bin/sleep")
+    sleeper.arguments = ["30"]
+    try sleeper.run()
+    let started = try whileController.startWhile(pid: sleeper.processIdentifier, name: "sleep")
+    check(started.active && started.watchedPID == sleeper.processIdentifier,
+          "startWhile records the watched pid")
+    check(started.endsAt == nil, "while-app sessions are untimed")
+    if case .onWhileApp(let name) = whileController.status().phase() {
+        check(name == "sleep", "status phase is onWhileApp(sleep)")
+    } else {
+        check(false, "phase should be onWhileApp")
+    }
+    checkThrows("extend on a while-app session throws") { try whileController.extend(by: 60) }
+    sleeper.terminate()
+    sleeper.waitUntilExit()
+    var ended = false
+    for _ in 0..<150 { // caffeinate notices the watched process died (≤3s)
+        if whileController.status().active == false { ended = true; break }
+        usleep(20_000)
+    }
+    check(ended, "session reconciles to inactive after the watched process exits")
+} catch {
+    check(false, "while-app lifecycle threw: \(error)")
+}
+_ = whileController.stop()
+try? FileManager.default.removeItem(at: whileTmp)
+
+print("TampState — while-app")
+let watchedState = TampState(active: true, pid: 999, watchedPID: 4321, watchedName: "Xcode")
+if case .onWhileApp(let name) = watchedState.phase() {
+    check(name == "Xcode", "phase onWhileApp carries the app name")
+} else {
+    check(false, "watchedPID → phase onWhileApp")
+}
+let watchedReport = StatusReport(state: watchedState, systemActive: false)
+check(watchedReport.phase == "onWhileApp", "report phase → onWhileApp")
+check(watchedReport.remainingSeconds == nil, "onWhileApp → nil remaining")
+let watchTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-watch-\(UUID().uuidString).json")
+let watchStore = StateStore(url: watchTmp)
+watchStore.save(watchedState)
+let watchLoaded = watchStore.loadRaw()
+check(watchLoaded.watchedPID == 4321 && watchLoaded.watchedName == "Xcode",
+      "watched fields round-trip")
+try? FileManager.default.removeItem(at: watchTmp)
 
 print("TampState")
 let nowState = Date()
