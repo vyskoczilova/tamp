@@ -234,10 +234,12 @@
   .faq summary {
     cursor: pointer; padding: 18px 0; font-weight: 600; font-size: 1.02rem;
     list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    transition: color 0.15s ease;
   }
   .faq summary::-webkit-details-marker { display: none; }
   .faq summary::after { content: "+"; color: var(--crema-deep); font-size: 1.3rem; font-weight: 400; }
   .faq details[open] summary::after { content: "–"; }
+  .faq summary:hover { color: var(--crema); }
   .faq details p { margin: 0 0 20px; color: var(--muted); max-width: 640px; }
   .faq code { font-family: var(--mono); font-size: 0.86em; color: var(--cream); }
 
