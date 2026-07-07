@@ -68,6 +68,7 @@ tamp toggle          # flip current state
 tamp for 2h          # keep awake for 2 hours
 tamp until 17:30     # keep awake until 17:30 (rolls to tomorrow if past)
 tamp add 15m         # extend the current timed session (also +15m)
+tamp while Xcode     # keep awake while that process runs (name or PID)
 tamp status          # show state ( --json for scripting, incl. resolved phase )
 tamp icon            # list icon styles ( * marks current )
 tamp icon pourOver   # set the menu bar icon style
@@ -112,7 +113,6 @@ Scripts/uninstall.sh   # stops the session, unregisters login item, removes app/
 
 ## Roadmap (v2)
 
-- "Caffeinate while app X runs" (`caffeinate -w <pid>`)
 - Natural-language recurring schedules
 - Distribution upgrade: Developer ID signing + notarization → Homebrew cask
 

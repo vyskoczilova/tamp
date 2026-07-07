@@ -76,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// the icon tracks external processes in near-real-time.
     private func rescheduleExpiryPoll(for state: TampState) {
         let interval: TimeInterval? =
+            state.active && state.watchedPID != nil ? 5 :  // while-app end (caffeinate exits, no file event)
             state.active && state.endsAt != nil ? 30 :   // timed session expiry
             !state.active                       ? 5  :   // external caffeinate detection
             nil                                           // indefinite own session — no poll needed
@@ -117,6 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(toggle)
 
         menu.addItem(durationSubmenu())
+        menu.addItem(whileAppSubmenu())
         if case .onTimed = phase {
             menu.addItem(extendSubmenu())
         }
@@ -145,6 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             title = "On — \(DurationParser.format(remaining: remaining)) left\(until)"
         case .onIndefinite:
             title = "On — until turned off"
+        case .onWhileApp(let name):
+            title = "On — while \(name) runs"
         case .externallyActive:
             title = "On — caffeinated by another app"
         }
@@ -168,6 +172,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         submenu.addItem(custom)
         parent.submenu = submenu
         return parent
+    }
+
+    /// Snapshot of the apps listed in the "Keep Awake While…" submenu, so a
+    /// tapped item's tag can be mapped back to a concrete process. Rebuilt on
+    /// every menu open — the pid is captured here, and the session then follows
+    /// that specific instance (quit + relaunch does not re-arm it).
+    private var whileAppTargets: [(name: String, pid: pid_t)] = []
+
+    private func whileAppSubmenu() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Keep Awake While…", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        whileAppTargets = NSWorkspace.shared.runningApplications
+            .filter { $0.activationPolicy == .regular }
+            .compactMap { app in app.localizedName.map { (name: $0, pid: app.processIdentifier) } }
+            .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        if whileAppTargets.isEmpty {
+            let empty = NSMenuItem(title: "No Running Apps", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            submenu.addItem(empty)
+        }
+        for (index, target) in whileAppTargets.enumerated() {
+            let item = NSMenuItem(title: target.name, action: #selector(whileAppTapped(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            submenu.addItem(item)
+        }
+        parent.submenu = submenu
+        return parent
+    }
+
+    @objc private func whileAppTapped(_ sender: NSMenuItem) {
+        guard whileAppTargets.indices.contains(sender.tag) else { return }
+        let target = whileAppTargets[sender.tag]
+        do {
+            try controller.startWhile(pid: target.pid, name: target.name)
+        } catch {
+            logTampError("caffeinate action failed", error)
+        }
+        refresh()
     }
 
     private func extendSubmenu() -> NSMenuItem {

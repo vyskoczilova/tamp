@@ -1,8 +1,5 @@
 ## Features
 
-[ ] "While app runs" — tamp while Xcode — keeps Mac awake as long as a named
-    app is open (uses caffeinate -w <pid>). Useful for builds, video calls, etc.
-
 [ ] Shell completions + man page in the Homebrew formula
     (ArgumentParser: `tamp --generate-completion-script zsh`).
 
@@ -18,6 +15,10 @@
 
 ## Done
 
+[x] "While app runs" — `tamp while Xcode` / `tamp while <pid>` + "Keep Awake
+    While…" running-apps submenu (caffeinate -w). Follows the specific
+    process instance; ends when it exits, no re-arm on relaunch. Ambiguous
+    names error out listing PIDs (v1.3.0)
 [x] Session extend — `tamp add 15m` + Extend submenu (timed sessions only,
     7-day cap re-checked); end time shown in menu/CLI ("1h 7m left (until
     17:30)"); opt-in end-of-session notification posted by TampBar via a

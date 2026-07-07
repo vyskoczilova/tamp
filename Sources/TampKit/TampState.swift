@@ -77,17 +77,28 @@ public struct TampState: Codable, Equatable, Sendable {
     /// When a timed session ends. Nil for indefinite sessions.
     public var endsAt: Date?
     public var flags: SleepFlags
+    /// PID caffeinate is watching (`-w`), for while-app sessions. Recorded
+    /// once at start purely for display — Tamp never signals or re-resolves
+    /// it; caffeinate itself exits when the watched process does. (Optional
+    /// fields decode as nil from older state files.)
+    public var watchedPID: Int32?
+    /// Display name of the watched process, captured when the session began.
+    public var watchedName: String?
 
     public init(
         active: Bool = false,
         pid: Int32? = nil,
         endsAt: Date? = nil,
-        flags: SleepFlags = SleepFlags()
+        flags: SleepFlags = SleepFlags(),
+        watchedPID: Int32? = nil,
+        watchedName: String? = nil
     ) {
         self.active = active
         self.pid = pid
         self.endsAt = endsAt
         self.flags = flags
+        self.watchedPID = watchedPID
+        self.watchedName = watchedName
     }
 
     /// The inactive state, preserving the desired sleep flags.
@@ -108,6 +119,8 @@ public struct TampState: Codable, Equatable, Sendable {
         case off
         case onIndefinite
         case onTimed(remaining: TimeInterval)
+        /// Awake for as long as the watched process runs (`caffeinate -w`).
+        case onWhileApp(name: String)
         /// The Mac is caffeinated by an external process (not Tamp's own session).
         case externallyActive
     }
@@ -118,6 +131,7 @@ public struct TampState: Codable, Equatable, Sendable {
         guard active else {
             return systemActive ? .externallyActive : .off
         }
+        if let watchedPID { return .onWhileApp(name: watchedName ?? "PID \(watchedPID)") }
         if let remaining = remaining(now: now) { return .onTimed(remaining: remaining) }
         return .onIndefinite
     }
@@ -128,7 +142,7 @@ public struct TampState: Codable, Equatable, Sendable {
 /// too, without reimplementing the phase logic.
 public struct StatusReport: Codable, Equatable, Sendable {
     public let state: TampState
-    /// One of "off", "onIndefinite", "onTimed", "externallyActive".
+    /// One of "off", "onIndefinite", "onTimed", "onWhileApp", "externallyActive".
     public let phase: String
     /// Whole seconds left in a timed session, nil otherwise.
     public let remainingSeconds: Int?
@@ -145,6 +159,9 @@ public struct StatusReport: Codable, Equatable, Sendable {
         case .onTimed(let remaining):
             phase = "onTimed"
             remainingSeconds = Int(remaining.rounded())
+        case .onWhileApp:
+            phase = "onWhileApp"
+            remainingSeconds = nil
         case .externallyActive:
             phase = "externallyActive"
             remainingSeconds = nil

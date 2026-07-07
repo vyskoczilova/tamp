@@ -14,14 +14,19 @@ public enum SystemAssertions {
         return String(decoding: buffer.prefix(while: { $0 != 0 }), as: UTF8.self)
     }
 
-    public static func isCaffeinated() -> Bool {
+    /// A best-effort snapshot of every live PID on the system.
+    static func allPIDs() -> [pid_t] {
         // proc_listallpids returns the number of PIDs (estimate when the
         // buffer is nil, entries written when it's provided).
         let estimate = proc_listallpids(nil, 0)
-        guard estimate > 0 else { return false }
+        guard estimate > 0 else { return [] }
         var pids = [pid_t](repeating: 0, count: Int(estimate) + 64) // headroom for new arrivals
         let filled = proc_listallpids(&pids, Int32(pids.count * MemoryLayout<pid_t>.size))
-        guard filled > 0 else { return false }
-        return pids.prefix(Int(filled)).contains { $0 > 0 && processName(of: $0) == "caffeinate" }
+        guard filled > 0 else { return [] }
+        return pids.prefix(Int(filled)).filter { $0 > 0 }
+    }
+
+    public static func isCaffeinated() -> Bool {
+        allPIDs().contains { processName(of: $0) == "caffeinate" }
     }
 }
