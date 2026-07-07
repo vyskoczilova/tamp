@@ -15,7 +15,9 @@ public enum ProcessResolver {
             case .noSuchPID(let pid):
                 return "No process with PID \(pid) is running."
             case .noMatch(let name):
-                return "No running process is named \"\(name)\"."
+                return "No running process is named \"\(name)\". "
+                    + "If it is running, try its PID instead (names are matched "
+                    + "exactly and the system truncates long ones)."
             case .ambiguous(let name, let pids):
                 let list = pids.map(String.init).joined(separator: ", ")
                 return "Several processes are named \"\(name)\" (PIDs \(list)). Re-run with a PID."

@@ -208,7 +208,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             try controller.startWhile(pid: target.pid, name: target.name)
         } catch {
+            // Realistic failure: the app quit between menu open and the click.
+            // Silence here would leave the user believing keep-awake is armed.
             logTampError("caffeinate action failed", error)
+            let alert = NSAlert()
+            alert.messageText = "Could not watch \(target.name)"
+            alert.informativeText = String(describing: error)
+            alert.runModal()
         }
         refresh()
     }
