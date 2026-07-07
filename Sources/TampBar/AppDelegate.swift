@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var fileWatcher: DispatchSourceFileSystemObject?
     private var refreshTimer: Timer?
     private var settingsWindowController: SettingsWindowController?
+    private var notifier: SessionNotifier?
 
     private let durationPresets: [(label: String, seconds: Int)] = [
         ("30 minutes", 30 * 60),
@@ -26,7 +27,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ("5 hours", 5 * 60 * 60),
     ]
 
+    private let extendPresets: [(label: String, seconds: Int)] = [
+        ("+15 minutes", 15 * 60),
+        ("+30 minutes", 30 * 60),
+        ("+1 hour", 60 * 60),
+    ]
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        notifier = SessionNotifier(preferences: preferences)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.imagePosition = .imageOnly
         // The menu is rebuilt lazily when it's about to open (see
@@ -49,9 +57,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// open, so it isn't touched here.
     private func refresh() {
         let state = controller.status()
-        let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
+        let phase = resolvedPhase(for: state)
         updateIcon(phase: phase)
         rescheduleExpiryPoll(for: state)
+        notifier?.sync(with: state)
+    }
+
+    /// `phase()` only consults the external-caffeinate scan when Tamp's own
+    /// session is inactive, so skip the (system-wide PID sweep) scan entirely
+    /// on the active path — refresh runs on every poll tick.
+    private func resolvedPhase(for state: TampState) -> TampState.Phase {
+        state.phase(systemActive: state.active ? false : SystemAssertions.isCaffeinated())
     }
 
     private func updateIcon(phase: TampState.Phase) {
@@ -92,7 +108,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         let state = controller.status()
-        let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
+        let phase = resolvedPhase(for: state)
         menu.removeAllItems()
         updateIcon(phase: phase)
 
@@ -108,6 +124,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(toggle)
 
         menu.addItem(durationSubmenu())
+        if case .onTimed = phase {
+            menu.addItem(extendSubmenu())
+        }
 
         menu.addItem(.separator())
         let settings = NSMenuItem(title: "Settings…", action: #selector(settingsTapped), keyEquivalent: ",")
@@ -129,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .off:
             title = "Off — Mac can sleep"
         case .onTimed(let remaining):
-            title = "On — \(DurationParser.format(remaining: remaining)) left"
+            title = "On — \(DurationParser.remainingSummary(remaining: remaining, endsAt: state.endsAt))"
         case .onIndefinite:
             title = "On — until turned off"
         case .externallyActive:
@@ -140,44 +159,92 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return item
     }
 
-    private func durationSubmenu() -> NSMenuItem {
-        let parent = NSMenuItem(title: "Keep Awake For", action: nil, keyEquivalent: "")
+    /// The shared preset-list + "Custom…" submenu shape (Keep Awake For,
+    /// Extend). Item tags index into the preset array the action reads.
+    private func presetSubmenu(
+        title: String,
+        presets: [(label: String, seconds: Int)],
+        action: Selector,
+        customAction: Selector
+    ) -> NSMenuItem {
+        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         let submenu = NSMenu()
-        for (index, preset) in durationPresets.enumerated() {
-            let item = NSMenuItem(title: preset.label, action: #selector(durationTapped(_:)), keyEquivalent: "")
+        for (index, preset) in presets.enumerated() {
+            let item = NSMenuItem(title: preset.label, action: action, keyEquivalent: "")
             item.target = self
             item.tag = index
             submenu.addItem(item)
         }
         submenu.addItem(.separator())
-        let custom = NSMenuItem(title: "Custom…", action: #selector(customDurationTapped), keyEquivalent: "")
+        let custom = NSMenuItem(title: "Custom…", action: customAction, keyEquivalent: "")
         custom.target = self
         submenu.addItem(custom)
         parent.submenu = submenu
         return parent
     }
 
-    @objc private func customDurationTapped() {
+    private func durationSubmenu() -> NSMenuItem {
+        presetSubmenu(
+            title: "Keep Awake For", presets: durationPresets,
+            action: #selector(durationTapped(_:)), customAction: #selector(customDurationTapped)
+        )
+    }
+
+    private func extendSubmenu() -> NSMenuItem {
+        presetSubmenu(
+            title: "Extend", presets: extendPresets,
+            action: #selector(extendTapped(_:)), customAction: #selector(customExtendTapped)
+        )
+    }
+
+    /// Modal text prompt shared by the "Custom…"-style inputs. Returns the
+    /// trimmed entry, or nil on cancel.
+    private func promptForText(
+        title: String, informative: String, placeholder: String, confirmTitle: String
+    ) -> String? {
         let alert = NSAlert()
-        alert.messageText = "Keep Awake For"
-        alert.informativeText = "Enter a duration: 30m, 1h, 1h30m, 90s"
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
-        field.placeholderString = "e.g. 45m"
+        alert.messageText = title
+        alert.informativeText = informative
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.placeholderString = placeholder
         alert.accessoryView = field
-        alert.addButton(withTitle: "Start")
+        alert.addButton(withTitle: confirmTitle)
         alert.addButton(withTitle: "Cancel")
         alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let input = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        return field.stringValue.trimmingCharacters(in: .whitespaces)
+    }
+
+    private func presentError(_ title: String, _ error: Error) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = String(describing: error)
+        alert.runModal()
+    }
+
+    @objc private func customExtendTapped() {
+        guard let input = promptForText(
+            title: "Extend Session", informative: "Enter extra time: 15m, 1h, 1h30m",
+            placeholder: "e.g. +15m", confirmTitle: "Extend"
+        ) else { return }
         do {
-            let seconds = try DurationParser.seconds(from: input)
-            try controller.start(duration: seconds)
+            try controller.extend(by: DurationParser.seconds(from: input))
             refresh()
         } catch {
-            let err = NSAlert()
-            err.messageText = "Invalid duration"
-            err.informativeText = String(describing: error)
-            err.runModal()
+            presentError("Could not extend", error)
+        }
+    }
+
+    @objc private func customDurationTapped() {
+        guard let input = promptForText(
+            title: "Keep Awake For", informative: "Enter a duration: 30m, 1h, 1h30m, 90s",
+            placeholder: "e.g. 45m", confirmTitle: "Start"
+        ) else { return }
+        do {
+            try controller.start(duration: DurationParser.seconds(from: input))
+            refresh()
+        } catch {
+            presentError("Invalid duration", error)
         }
     }
 
@@ -191,6 +258,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func durationTapped(_ sender: NSMenuItem) {
         let preset = durationPresets[sender.tag]
         do { try controller.start(duration: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
+        refresh()
+    }
+
+    @objc private func extendTapped(_ sender: NSMenuItem) {
+        guard extendPresets.indices.contains(sender.tag) else { return }
+        let preset = extendPresets[sender.tag]
+        do { try controller.extend(by: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
         refresh()
     }
 

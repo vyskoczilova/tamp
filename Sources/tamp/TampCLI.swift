@@ -12,7 +12,7 @@ struct Tamp: ParsableCommand {
         apps keep the Mac awake. Inspired by the Raycast Coffee extension.
         """,
         version: appVersion,
-        subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Status.self, Icon.self],
+        subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Add.self, Status.self, Icon.self],
         defaultSubcommand: Status.self
     )
 }
@@ -115,6 +115,20 @@ struct Until: ParsableCommand {
     }
 }
 
+struct Add: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Extend the current timed session, e.g. 'tamp add 15m'."
+    )
+    @Argument(help: "Extra time: 15m, 1h, +30m (bare number = minutes).")
+    var duration: String
+
+    func run() throws {
+        let seconds = try DurationParser.seconds(from: duration)
+        let state = try CaffeinateController().extend(by: seconds)
+        print(describe(state))
+    }
+}
+
 struct Status: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Show current state.")
     @Flag(name: .long, help: "Output machine-readable JSON.")
@@ -167,7 +181,7 @@ func describe(_ state: TampState, systemActive: Bool = false) -> String {
     case .off:
         return "☕️ Off — your Mac can sleep normally."
     case .onTimed(let remaining):
-        return "☕️ On — \(DurationParser.format(remaining: remaining)) left."
+        return "☕️ On — \(DurationParser.remainingSummary(remaining: remaining, endsAt: state.endsAt))."
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
     case .externallyActive:

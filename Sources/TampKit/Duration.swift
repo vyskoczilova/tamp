@@ -26,8 +26,14 @@ public enum DurationParser {
     public static let maxSeconds = 7 * 24 * 3600
 
     /// Parse a compact duration like "1h30m", "45m", "90s", "2h" into seconds.
+    /// A single leading "+" is allowed ("+15m"), matching how extensions are
+    /// naturally typed.
     public static func seconds(from text: String) throws -> Int {
-        let trimmed = text.trimmingCharacters(in: .whitespaces).lowercased()
+        var trimmed = text.trimmingCharacters(in: .whitespaces).lowercased()
+        if trimmed.hasPrefix("+") {
+            // Re-trim so "+ 15m" works like "+15m".
+            trimmed = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+        }
         guard !trimmed.isEmpty else { throw ParseError.empty }
 
         // Bare number means minutes (e.g. "90" → 90 minutes).
@@ -93,6 +99,25 @@ public enum DurationParser {
             target = tomorrow
         }
         return Int(target.timeIntervalSince(now).rounded())
+    }
+
+    /// Format a date's wall-clock time as "HH:MM" (24h) — the same shape the
+    /// `until` command accepts, used for end-time display.
+    public static func clock(_ date: Date, calendar: Calendar = .current) -> String {
+        let components = calendar.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+    }
+
+    /// The timed-session summary both front-ends show — "1h 7m left
+    /// (until 17:30)" — single-sourced so the CLI and the menu bar can't
+    /// drift on the one fragment that must stay identical.
+    public static func remainingSummary(
+        remaining: TimeInterval,
+        endsAt: Date?,
+        calendar: Calendar = .current
+    ) -> String {
+        let until = endsAt.map { " (until \(clock($0, calendar: calendar)))" } ?? ""
+        return "\(format(remaining: remaining)) left\(until)"
     }
 
     /// Format a remaining interval as a compact human string ("1h 7m", "45s").

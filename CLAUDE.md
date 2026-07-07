@@ -71,13 +71,14 @@ Sources/
 │   ├── SystemAssertions.swift      libproc-based check for external caffeinate processes
 │   ├── StateStore.swift            read/write the shared state JSON (NSFileCoordinator)
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
-│   ├── Duration.swift              parse "1h30m"/"90s"/bare-minutes and "until HH:MM" (7-day cap)
+│   ├── Duration.swift              parse "1h30m"/"+15m"/bare-minutes and "until HH:MM" (7-day cap); clock/remaining formatting
 │   ├── IconStyle.swift             icon styles incl. brewing concepts → SF Symbol names
 │   └── Logging.swift               os.Logger for engine-level failures
 ├── tamp/             CLI (ArgumentParser) — thin wrapper over TampKit
 ├── TampBar/          menu bar app (AppKit NSStatusItem) — thin wrapper over TampKit
 │   ├── main.swift          NSApplication bootstrap (.accessory policy)
 │   ├── AppDelegate.swift   @MainActor status item, menu, state-file watcher
+│   ├── SessionNotifier.swift  opt-in session-end notification (needs the .app bundle)
 │   └── LoginItem.swift     SMAppService launch-at-login (needs the .app bundle)
 └── TampKitChecks/    executable test harness for TampKit
 ```
@@ -163,13 +164,13 @@ doubles as the integer-overflow guard.
 ## Roadmap (v2, not yet built)
 
 - `caffeinate -w <pid>` ("keep awake while app X runs")
-- Session extend, end-time display, end-of-session notification
 - Natural-language recurring schedules
 
 Done since v1.0.0: rename Coffee → Tamp; PID-identity safety; 7-day duration
 cap; libproc detection; icon render cache; JSON phase report; MIT license;
 Homebrew tap distribution; `-s`/`-u` flags (CLI `--ac`/`--wake`, settings
-toggles, v1.1.0).
+toggles, v1.1.0); session extend + end-time display + opt-in end-of-session
+notification (v1.2.0).
 
 ## License
 

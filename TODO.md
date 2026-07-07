@@ -3,12 +3,6 @@
 [ ] "While app runs" — tamp while Xcode — keeps Mac awake as long as a named
     app is open (uses caffeinate -w <pid>). Useful for builds, video calls, etc.
 
-[ ] Session extend ("+15 m") — menu item and `tamp add 15m`.
-
-[ ] Show end time in menu/CLI: "On — 1h 7m left (until 17:30)".
-
-[ ] Notification when a timed session ends (opt-in).
-
 [ ] Shell completions + man page in the Homebrew formula
     (ArgumentParser: `tamp --generate-completion-script zsh`).
 
@@ -24,6 +18,11 @@
 
 ## Done
 
+[x] Session extend — `tamp add 15m` + Extend submenu (timed sessions only,
+    7-day cap re-checked); end time shown in menu/CLI ("1h 7m left (until
+    17:30)"); opt-in end-of-session notification posted by TampBar via a
+    pending UNNotification keyed to endsAt (works for CLI-started sessions
+    too; needs the packaged app) (v1.2.0)
 [x] Expose remaining caffeinate flags: -s (AC power) and -u (wake display) —
     CLI --ac/--wake overrides + settings toggles; legacy state.json still
     decodes (v1.1.0)
