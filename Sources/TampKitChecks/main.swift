@@ -29,6 +29,7 @@ check((try? DurationParser.seconds(from: "90s")) == 90, "90s → 90")
 check((try? DurationParser.seconds(from: "2h15m30s")) == 8130, "2h15m30s → 8130")
 check((try? DurationParser.seconds(from: "90")) == 5400, "bare 90 → 90 minutes")
 check((try? DurationParser.seconds(from: "+15m")) == 900, "+15m → 900 (leading + allowed)")
+check((try? DurationParser.seconds(from: "+ 15m")) == 900, "+ 15m → 900 (space after + allowed)")
 check((try? DurationParser.seconds(from: "+90")) == 5400, "+90 → 90 minutes")
 checkThrows("bare + throws") { _ = try DurationParser.seconds(from: "+") }
 checkThrows("empty string throws") { _ = try DurationParser.seconds(from: "") }
@@ -191,8 +192,15 @@ print("ProcessResolver")
 let selfPID = getpid()
 check((try? ProcessResolver.resolve("\(selfPID)"))?.pid == selfPID, "resolve by PID finds this process")
 if let selfName = (try? ProcessResolver.resolve("\(selfPID)"))?.name {
-    let byName = try? ProcessResolver.resolve(selfName.uppercased())
-    check(byName != nil, "resolve by name is case-insensitive (or ambiguous, never silent)")
+    do {
+        _ = try ProcessResolver.resolve(selfName.uppercased())
+        check(true, "resolve by name is case-insensitive")
+    } catch ProcessResolver.ResolveError.ambiguous {
+        // Another live process shares this name — still a correct, non-silent answer.
+        check(true, "resolve by name is case-insensitive (ambiguous match reported)")
+    } catch {
+        check(false, "resolve by own name threw: \(error)")
+    }
 }
 checkThrows("unknown name throws") {
     _ = try ProcessResolver.resolve("no-such-process-\(UUID().uuidString.prefix(8))")
@@ -202,7 +210,13 @@ checkThrows("dead PID throws") { _ = try ProcessResolver.resolve("999999") }
 print("CaffeinateController — while-app lifecycle")
 let whileTmp = URL(fileURLWithPath: NSTemporaryDirectory())
     .appendingPathComponent("tamp-while-\(UUID().uuidString).json")
-let whileController = CaffeinateController(store: StateStore(url: whileTmp))
+// Scratch prefs suite: the applyFlags check below persists flags, and the
+// real shared suite must not be touched by the harness.
+let whileSuite = "cz.kybernaut.tamp.checks.\(UUID().uuidString)"
+let whileController = CaffeinateController(
+    store: StateStore(url: whileTmp),
+    preferences: Preferences(defaults: UserDefaults(suiteName: whileSuite))
+)
 checkThrows("startWhile on a dead pid throws") {
     _ = try whileController.startWhile(pid: 999_999, name: nil)
 }
@@ -221,6 +235,10 @@ do {
         check(false, "phase should be onWhileApp")
     }
     checkThrows("extend on a while-app session throws") { try whileController.extend(by: 60) }
+    // Changing sleep prefs mid-session must keep watching (not drop -w).
+    let reflagged = try whileController.applyFlags(SleepFlags(display: false, system: true, disk: false))
+    check(reflagged.watchedPID == sleeper.processIdentifier && reflagged.endsAt == nil,
+          "applyFlags keeps a while-app session watching")
     sleeper.terminate()
     sleeper.waitUntilExit()
     var ended = false
@@ -234,6 +252,7 @@ do {
 }
 _ = whileController.stop()
 try? FileManager.default.removeItem(at: whileTmp)
+UserDefaults.standard.removePersistentDomain(forName: whileSuite)
 
 print("TampState — while-app")
 let watchedState = TampState(active: true, pid: 999, watchedPID: 4321, watchedName: "Xcode")

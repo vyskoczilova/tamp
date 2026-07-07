@@ -214,7 +214,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         do {
             try controller.startWhile(pid: target.pid, name: target.name)
         } catch {
+            // Realistic failure: the app quit between menu open and the click.
+            // Silence here would leave the user believing keep-awake is armed.
             logTampError("caffeinate action failed", error)
+            let alert = NSAlert()
+            alert.messageText = "Could not watch \(target.name)"
+            alert.informativeText = String(describing: error)
+            alert.runModal()
         }
         refresh()
     }
@@ -385,6 +391,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func extendTapped(_ sender: NSMenuItem) {
+        guard extendPresets.indices.contains(sender.tag) else { return }
         let preset = extendPresets[sender.tag]
         do { try controller.extend(by: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
         refresh()
