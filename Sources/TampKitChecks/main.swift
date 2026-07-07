@@ -60,6 +60,12 @@ check(DurationParser.clock(evening, calendar: cal) == "17:30", "clock → 17:30"
 let morning = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 9, minute: 5))!
 check(DurationParser.clock(morning, calendar: cal) == "09:05", "clock zero-pads → 09:05")
 
+check(DurationParser.remainingSummary(remaining: 4020, endsAt: evening, calendar: cal)
+        == "1h 7m left (until 17:30)",
+      "remainingSummary composes remaining + end time")
+check(DurationParser.remainingSummary(remaining: 4020, endsAt: nil) == "1h 7m left",
+      "remainingSummary without endsAt omits the suffix")
+
 check(DurationParser.format(remaining: 4020) == "1h 7m", "format 4020 → 1h 7m")
 check(DurationParser.format(remaining: 2700) == "45m", "format 2700 → 45m")
 check(DurationParser.format(remaining: 30) == "30s", "format 30 → 30s")
@@ -78,6 +84,13 @@ check(SleepFlags(display: false, system: false, disk: false, acPower: true, wake
 check(SleepFlags(display: true, system: true, disk: true, acPower: true, wake: true)
         .caffeinateArguments == ["-d", "-i", "-m", "-s", "-u"],
       "all five → -d -i -m -s -u (stable order)")
+let wakeOnly = SleepFlags(display: false, system: false, disk: false, wake: true)
+check(wakeOnly.sessionArguments(timed: false) == ["-u", "-i"],
+      "untimed wake-only session gets the -i backstop")
+check(wakeOnly.sessionArguments(timed: true) == ["-u"],
+      "timed wake-only session keeps bare -u (-t sustains it)")
+check(SleepFlags(display: false, system: false, disk: false).sessionArguments(timed: false) == ["-i"],
+      "all-off session falls back to -i")
 
 // A pre-1.1.0 state file (no acPower/wake keys) must keep decoding, with the
 // newer flags defaulting to off and the stored values preserved.

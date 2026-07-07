@@ -108,6 +108,18 @@ public enum DurationParser {
         return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
     }
 
+    /// The timed-session summary both front-ends show — "1h 7m left
+    /// (until 17:30)" — single-sourced so the CLI and the menu bar can't
+    /// drift on the one fragment that must stay identical.
+    public static func remainingSummary(
+        remaining: TimeInterval,
+        endsAt: Date?,
+        calendar: Calendar = .current
+    ) -> String {
+        let until = endsAt.map { " (until \(clock($0, calendar: calendar)))" } ?? ""
+        return "\(format(remaining: remaining)) left\(until)"
+    }
+
     /// Format a remaining interval as a compact human string ("1h 7m", "45s").
     public static func format(remaining seconds: TimeInterval) -> String {
         let total = Int(seconds.rounded())

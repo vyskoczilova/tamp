@@ -324,8 +324,7 @@ func describe(_ state: TampState, systemActive: Bool = false) -> String {
     case .off:
         return "☕️ Off — your Mac can sleep normally."
     case .onTimed(let remaining):
-        let until = state.endsAt.map { " (until \(DurationParser.clock($0)))" } ?? ""
-        return "☕️ On — \(DurationParser.format(remaining: remaining)) left\(until)."
+        return "☕️ On — \(DurationParser.remainingSummary(remaining: remaining, endsAt: state.endsAt))."
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
     case .onWhileApp(let name):
