@@ -14,11 +14,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let controller = CaffeinateController()
     private let preferences = Preferences()
     private let store = StateStore()
+    private let scheduleStore = ScheduleStore()
 
-    private var fileWatcher: DispatchSourceFileSystemObject?
+    private var stateWatcher: FileWatcher?
     private var refreshTimer: Timer?
     private var settingsWindowController: SettingsWindowController?
     private var notifier: SessionNotifier?
+    private var scheduleRunner: ScheduleRunner?
 
     private let durationPresets: [(label: String, seconds: Int)] = [
         ("30 minutes", 30 * 60),
@@ -43,6 +45,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
         startWatchingState()
+        scheduleRunner = ScheduleRunner(controller: controller, store: scheduleStore) { [weak self] in
+            self?.refresh()
+        }
         refresh()
     }
 
@@ -119,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(durationSubmenu())
         menu.addItem(whileAppSubmenu())
+        menu.addItem(schedulesSubmenu())
         if case .onTimed = phase {
             menu.addItem(extendSubmenu())
         }
@@ -211,6 +217,93 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             logTampError("caffeinate action failed", error)
         }
         refresh()
+    }
+
+    /// Snapshot of the schedules shown in the submenu, mapping item tags back
+    /// to schedule ids. Rebuilt on every menu open.
+    private var scheduleItems: [Schedule] = []
+
+    private func schedulesSubmenu() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Schedules", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        scheduleItems = scheduleStore.load()
+        for (index, schedule) in scheduleItems.enumerated() {
+            let item = NSMenuItem(
+                title: schedule.displayText,
+                action: #selector(scheduleToggled(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.tag = index
+            item.state = schedule.enabled ? .on : .off
+            submenu.addItem(item)
+        }
+        if !scheduleItems.isEmpty { submenu.addItem(.separator()) }
+        let add = NSMenuItem(title: "Add Schedule…", action: #selector(addScheduleTapped), keyEquivalent: "")
+        add.target = self
+        submenu.addItem(add)
+        if !scheduleItems.isEmpty {
+            let removeParent = NSMenuItem(title: "Remove", action: nil, keyEquivalent: "")
+            let removeMenu = NSMenu()
+            for (index, schedule) in scheduleItems.enumerated() {
+                let item = NSMenuItem(
+                    title: schedule.displayText,
+                    action: #selector(scheduleRemoveTapped(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.tag = index
+                removeMenu.addItem(item)
+            }
+            removeParent.submenu = removeMenu
+            submenu.addItem(removeParent)
+        }
+        parent.submenu = submenu
+        return parent
+    }
+
+    /// Checkmark = enabled; clicking flips it. Disabling stops future firings
+    /// only — a session the schedule already started is ended via Turn Off.
+    @objc private func scheduleToggled(_ sender: NSMenuItem) {
+        guard scheduleItems.indices.contains(sender.tag) else { return }
+        var schedules = scheduleStore.load()
+        guard let index = schedules.firstIndex(where: { $0.id == scheduleItems[sender.tag].id }) else { return }
+        schedules[index].enabled.toggle()
+        scheduleStore.save(schedules) // the file watcher re-arms the runner
+        refresh()
+    }
+
+    @objc private func scheduleRemoveTapped(_ sender: NSMenuItem) {
+        guard scheduleItems.indices.contains(sender.tag) else { return }
+        var schedules = scheduleStore.load()
+        schedules.removeAll { $0.id == scheduleItems[sender.tag].id }
+        scheduleStore.save(schedules)
+        refresh()
+    }
+
+    @objc private func addScheduleTapped() {
+        let alert = NSAlert()
+        alert.messageText = "Add Schedule"
+        alert.informativeText = "Examples: weekdays 9-17, daily 8:30-18, mon,wed,fri 9am-5pm"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
+        field.placeholderString = "e.g. weekdays 9-17"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Add")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        do {
+            let schedule = try ScheduleParser.parse(field.stringValue)
+            var schedules = scheduleStore.load()
+            schedules.append(schedule)
+            scheduleStore.save(schedules)
+            refresh()
+        } catch {
+            let err = NSAlert()
+            err.messageText = "Invalid schedule"
+            err.informativeText = String(describing: error)
+            err.runModal()
+        }
     }
 
     private func extendSubmenu() -> NSMenuItem {
@@ -319,25 +412,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !FileManager.default.fileExists(atPath: store.url.path) {
             store.save(controller.status())
         }
-        let fd = open(store.url.path, O_EVTONLY)
-        guard fd >= 0 else { return }
-        let source = DispatchSource.makeFileSystemObjectSource(
-            fileDescriptor: fd,
-            eventMask: [.write, .delete, .rename],
-            queue: .main
-        )
-        source.setEventHandler { [weak self] in
-            // Delivered on the main queue, so it is safe to assume isolation.
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                // Atomic writes replace the inode, so re-arm the watch.
-                self.fileWatcher?.cancel()
-                self.startWatchingState()
-                self.refresh()
-            }
+        stateWatcher = FileWatcher(path: store.url.path) { [weak self] in
+            self?.refresh()
         }
-        source.setCancelHandler { close(fd) }
-        fileWatcher = source
-        source.resume()
     }
 }

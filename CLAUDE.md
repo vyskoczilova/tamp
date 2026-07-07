@@ -73,12 +73,17 @@ Sources/
 │   ├── StateStore.swift            read/write the shared state JSON (NSFileCoordinator)
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
 │   ├── Duration.swift              parse "1h30m"/"+15m"/bare-minutes and "until HH:MM" (7-day cap); clock/remaining formatting
+│   ├── Schedule.swift              recurring-schedule model + deterministic parser ("weekdays 9-17")
+│   ├── Scheduler.swift             pure window math (activeWindow/nextTransition, calendar-injected)
+│   ├── ScheduleStore.swift         read/write schedules.json (mirrors StateStore)
 │   ├── IconStyle.swift             icon styles incl. brewing concepts → SF Symbol names
 │   └── Logging.swift               os.Logger for engine-level failures
 ├── tamp/             CLI (ArgumentParser) — thin wrapper over TampKit
 ├── TampBar/          menu bar app (AppKit NSStatusItem) — thin wrapper over TampKit
 │   ├── main.swift          NSApplication bootstrap (.accessory policy)
 │   ├── AppDelegate.swift   @MainActor status item, menu, state-file watcher
+│   ├── FileWatcher.swift   reusable DispatchSource file watcher (re-arms per event)
+│   ├── ScheduleRunner.swift   arms timers at window transitions, fires timed sessions
 │   ├── SessionNotifier.swift  opt-in session-end notification (needs the .app bundle)
 │   └── LoginItem.swift     SMAppService launch-at-login (needs the .app bundle)
 └── TampKitChecks/    executable test harness for TampKit
@@ -113,6 +118,14 @@ it from both front-ends so they never drift.
   them too — `IconStyle.customAsset(active:)` returns the right one.
 - `tamp status --json` emits a `StatusReport` envelope (state + resolved phase +
   remainingSeconds) so scripts see external caffeination too.
+- Recurring schedules live in `schedules.json` next to the state file and use
+  the same watch-the-file signalling: the CLI edits the list, TampBar's
+  `ScheduleRunner` (the only scheduler — no launchd) re-arms on every change
+  and, at a window start, launches an ordinary timed session ending at the
+  window end. Firing is edge-triggered per window: manual off mid-window stays
+  off; an app launch mid-window catches up once. Windows never cross midnight
+  (parser rejects overnight for now) and all date math goes through an
+  injectable `Calendar` (DST-safe, testable).
 
 ### Sleep flags → `caffeinate`
 
@@ -163,16 +176,19 @@ doubles as the integer-overflow guard.
 - Upgrade path: Developer ID + notarization → proper cask (`Casks/tamp.rb`),
   one-step /Applications install.
 
-## Roadmap (v2, not yet built)
+## Roadmap (not yet built)
 
-- Natural-language recurring schedules
+- Overnight schedule windows ("daily 22-6"); schedules without the menu bar
+  app (launchd)
+- Shell completions + man page; "which app is caffeinating" introspection
 
 Done since v1.0.0: rename Coffee → Tamp; PID-identity safety; 7-day duration
 cap; libproc detection; icon render cache; JSON phase report; MIT license;
 Homebrew tap distribution; `-s`/`-u` flags (CLI `--ac`/`--wake`, settings
 toggles, v1.1.0); session extend + end-time display + opt-in end-of-session
 notification (v1.2.0); while-app sessions (`tamp while`, caffeinate `-w`,
-per-instance, v1.3.0).
+per-instance, v1.3.0); recurring schedules (`tamp schedule`, TampBar-run,
+v1.4.0).
 
 ## License
 
