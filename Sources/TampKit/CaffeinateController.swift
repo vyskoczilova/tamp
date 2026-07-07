@@ -1,5 +1,23 @@
 import Foundation
 
+/// Why a session operation couldn't apply to the current state.
+public enum SessionError: Error, Equatable, CustomStringConvertible {
+    case notActive
+    case notTimed
+    case overCap
+
+    public var description: String {
+        switch self {
+        case .notActive:
+            return "No session is running. Start one with 'on', 'for', or 'until'."
+        case .notTimed:
+            return "Only timed sessions can be extended."
+        case .overCap:
+            return "Sessions are capped at 7 days."
+        }
+    }
+}
+
 /// The engine. Wraps `/usr/bin/caffeinate`, owns the shared state, and keeps it
 /// reconciled with reality (a recorded PID that no longer exists means inactive).
 public final class CaffeinateController {
@@ -54,6 +72,22 @@ public final class CaffeinateController {
         let current = status()
         guard current.active else { return current }
         return try start(duration: current.remaining().map { Int($0) }, flags: flags)
+    }
+
+    /// Add time to the current timed session. Restarts the tracked caffeinate
+    /// with the new remaining total (same pattern as `applyFlags`), keeping the
+    /// session's own flags. The 7-day cap applies to the new total.
+    @discardableResult
+    public func extend(by seconds: Int) throws -> TampState {
+        let current = status()
+        guard current.active else { throw SessionError.notActive }
+        guard let remaining = current.remaining() else { throw SessionError.notTimed }
+        // Compare before adding (like DurationParser's cap check) so absurd
+        // inputs can't overflow. Non-positive extensions are rejected too.
+        guard seconds > 0, seconds <= DurationParser.maxSeconds - Int(remaining) else {
+            throw SessionError.overCap
+        }
+        return try start(duration: Int(remaining) + seconds, flags: current.flags)
     }
 
     /// Stop any running session. Safe to call when already inactive.

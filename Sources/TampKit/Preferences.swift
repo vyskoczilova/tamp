@@ -12,6 +12,7 @@ public struct Preferences {
         static let acPower = "preventSleepOnAC"
         static let wake = "wakeDisplayOnStart"
         static let iconStyle = "iconStyle"
+        static let notifyOnEnd = "notifyOnSessionEnd"
     }
 
     /// The shared suite used by both `tamp` and `TampBar`.
@@ -29,6 +30,7 @@ public struct Preferences {
             Key.disk: false,
             Key.acPower: false,
             Key.wake: false,
+            Key.notifyOnEnd: false,
         ])
     }
 
@@ -49,6 +51,12 @@ public struct Preferences {
             defaults.set(newValue.acPower, forKey: Key.acPower)
             defaults.set(newValue.wake, forKey: Key.wake)
         }
+    }
+
+    /// Opt-in "session ended" notification (posted by the menu bar app).
+    public var notifyOnSessionEnd: Bool {
+        get { defaults.bool(forKey: Key.notifyOnEnd) }
+        nonmutating set { defaults.set(newValue, forKey: Key.notifyOnEnd) }
     }
 
     public var iconStyle: IconStyle {

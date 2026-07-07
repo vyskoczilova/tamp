@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var fileWatcher: DispatchSourceFileSystemObject?
     private var refreshTimer: Timer?
     private var settingsWindowController: SettingsWindowController?
+    private var notifier: SessionNotifier?
 
     private let durationPresets: [(label: String, seconds: Int)] = [
         ("30 minutes", 30 * 60),
@@ -26,7 +27,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         ("5 hours", 5 * 60 * 60),
     ]
 
+    private let extendPresets: [(label: String, seconds: Int)] = [
+        ("+15 minutes", 15 * 60),
+        ("+30 minutes", 30 * 60),
+        ("+1 hour", 60 * 60),
+    ]
+
     func applicationDidFinishLaunching(_ notification: Notification) {
+        notifier = SessionNotifier(preferences: preferences)
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.imagePosition = .imageOnly
         // The menu is rebuilt lazily when it's about to open (see
@@ -52,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
         updateIcon(phase: phase)
         rescheduleExpiryPoll(for: state)
+        notifier?.sync(with: state)
     }
 
     private func updateIcon(phase: TampState.Phase) {
@@ -108,6 +117,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(toggle)
 
         menu.addItem(durationSubmenu())
+        if case .onTimed = phase {
+            menu.addItem(extendSubmenu())
+        }
 
         menu.addItem(.separator())
         let settings = NSMenuItem(title: "Settings…", action: #selector(settingsTapped), keyEquivalent: ",")
@@ -129,7 +141,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .off:
             title = "Off — Mac can sleep"
         case .onTimed(let remaining):
-            title = "On — \(DurationParser.format(remaining: remaining)) left"
+            let until = state.endsAt.map { " (until \(DurationParser.clock($0)))" } ?? ""
+            title = "On — \(DurationParser.format(remaining: remaining)) left\(until)"
         case .onIndefinite:
             title = "On — until turned off"
         case .externallyActive:
@@ -155,6 +168,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         submenu.addItem(custom)
         parent.submenu = submenu
         return parent
+    }
+
+    private func extendSubmenu() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Extend", action: nil, keyEquivalent: "")
+        let submenu = NSMenu()
+        for (index, preset) in extendPresets.enumerated() {
+            let item = NSMenuItem(title: preset.label, action: #selector(extendTapped(_:)), keyEquivalent: "")
+            item.target = self
+            item.tag = index
+            submenu.addItem(item)
+        }
+        submenu.addItem(.separator())
+        let custom = NSMenuItem(title: "Custom…", action: #selector(customExtendTapped), keyEquivalent: "")
+        custom.target = self
+        submenu.addItem(custom)
+        parent.submenu = submenu
+        return parent
+    }
+
+    @objc private func customExtendTapped() {
+        let alert = NSAlert()
+        alert.messageText = "Extend Session"
+        alert.informativeText = "Enter extra time: 15m, 1h, 1h30m"
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
+        field.placeholderString = "e.g. +15m"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Extend")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = field
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let input = field.stringValue.trimmingCharacters(in: .whitespaces)
+        do {
+            let seconds = try DurationParser.seconds(from: input)
+            try controller.extend(by: seconds)
+            refresh()
+        } catch {
+            let err = NSAlert()
+            err.messageText = "Could not extend"
+            err.informativeText = String(describing: error)
+            err.runModal()
+        }
     }
 
     @objc private func customDurationTapped() {
@@ -191,6 +245,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func durationTapped(_ sender: NSMenuItem) {
         let preset = durationPresets[sender.tag]
         do { try controller.start(duration: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
+        refresh()
+    }
+
+    @objc private func extendTapped(_ sender: NSMenuItem) {
+        let preset = extendPresets[sender.tag]
+        do { try controller.extend(by: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
         refresh()
     }
 

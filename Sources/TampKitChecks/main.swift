@@ -28,6 +28,9 @@ check((try? DurationParser.seconds(from: "1h30m")) == 5400, "1h30m → 5400")
 check((try? DurationParser.seconds(from: "90s")) == 90, "90s → 90")
 check((try? DurationParser.seconds(from: "2h15m30s")) == 8130, "2h15m30s → 8130")
 check((try? DurationParser.seconds(from: "90")) == 5400, "bare 90 → 90 minutes")
+check((try? DurationParser.seconds(from: "+15m")) == 900, "+15m → 900 (leading + allowed)")
+check((try? DurationParser.seconds(from: "+90")) == 5400, "+90 → 90 minutes")
+checkThrows("bare + throws") { _ = try DurationParser.seconds(from: "+") }
 checkThrows("empty string throws") { _ = try DurationParser.seconds(from: "") }
 checkThrows("abc throws") { _ = try DurationParser.seconds(from: "abc") }
 checkThrows("1h30 (trailing digits) throws") { _ = try DurationParser.seconds(from: "1h30") }
@@ -50,6 +53,11 @@ check((try? DurationParser.secondsUntil(time: "12:30", now: now, calendar: cal))
       "until 12:30 from 10:00 → 2h30m")
 check((try? DurationParser.secondsUntil(time: "09:00", now: now, calendar: cal)) == 23 * 3600,
       "until 09:00 (past) rolls to tomorrow → 23h")
+
+let evening = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 17, minute: 30))!
+check(DurationParser.clock(evening, calendar: cal) == "17:30", "clock → 17:30")
+let morning = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 9, minute: 5))!
+check(DurationParser.clock(morning, calendar: cal) == "09:05", "clock zero-pads → 09:05")
 
 check(DurationParser.format(remaining: 4020) == "1h 7m", "format 4020 → 1h 7m")
 check(DurationParser.format(remaining: 2700) == "45m", "format 2700 → 45m")
@@ -154,6 +162,29 @@ do {
     check(false, "lifecycle start() threw: \(error)")
 }
 try? FileManager.default.removeItem(at: lifeTmp)
+
+print("CaffeinateController — extend")
+let extTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-extend-\(UUID().uuidString).json")
+let extController = CaffeinateController(store: StateStore(url: extTmp))
+checkThrows("extend with no session throws") { try extController.extend(by: 60) }
+do {
+    let started = try extController.start(duration: 60)
+    let extended = try extController.extend(by: 60)
+    check(extended.active, "extend keeps the session active")
+    check(extended.remaining().map { $0 > 100 && $0 <= 121 } == true, "extend 60s+60s → ≈120s remaining")
+    check(extended.pid != nil && extended.pid != started.pid, "extend restarts with a fresh caffeinate")
+    checkThrows("extend past the 7-day cap throws") { try extController.extend(by: DurationParser.maxSeconds) }
+    check(extController.status().active, "over-cap extend leaves the session running")
+    _ = extController.stop()
+    _ = try extController.start() // indefinite
+    checkThrows("extend on an indefinite session throws") { try extController.extend(by: 60) }
+    _ = extController.stop()
+} catch {
+    check(false, "extend lifecycle threw: \(error)")
+    _ = extController.stop()
+}
+try? FileManager.default.removeItem(at: extTmp)
 
 print("TampState")
 let nowState = Date()

@@ -16,6 +16,7 @@ final class SettingsWindowController: NSWindowController {
     private var iconPopUp: NSPopUpButton!
     private var iconPreview: NSImageView!
     private var loginCheck: NSButton!
+    private var notifyCheck: NSButton!
 
     init(preferences: Preferences, controller: CaffeinateController, onChange: @escaping () -> Void) {
         self.preferences = preferences
@@ -59,6 +60,8 @@ final class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(header("General"))
         loginCheck = checkbox(title: "Launch at Login", action: #selector(loginToggled))
         stack.addArrangedSubview(loginCheck)
+        notifyCheck = checkbox(title: "Notify When a Timed Session Ends", action: #selector(notifyToggled))
+        stack.addArrangedSubview(notifyCheck)
         stack.addArrangedSubview(spacer())
 
         stack.addArrangedSubview(header("Keep Awake"))
@@ -176,6 +179,15 @@ final class SettingsWindowController: NSWindowController {
             loginCheck.state = .off
             loginCheck.toolTip = "Available when running the packaged Tamp.app"
         }
+        if SessionNotifier.isAvailable {
+            notifyCheck.isEnabled = true
+            notifyCheck.state = preferences.notifyOnSessionEnd ? .on : .off
+            notifyCheck.toolTip = nil
+        } else {
+            notifyCheck.isEnabled = false
+            notifyCheck.state = .off
+            notifyCheck.toolTip = "Available when running the packaged Tamp.app"
+        }
     }
 
     // MARK: - Actions
@@ -197,6 +209,29 @@ final class SettingsWindowController: NSWindowController {
             iconPreview.image = iconImage(for: style)
         }
         onChange()
+    }
+
+    @objc private func notifyToggled() {
+        guard notifyCheck.state == .on else {
+            preferences.notifyOnSessionEnd = false
+            onChange()
+            return
+        }
+        // Only flip the preference on once the system actually granted
+        // permission; otherwise revert the checkbox and point at System
+        // Settings (the prompt is only shown once per app).
+        Task { [weak self] in
+            let granted = await SessionNotifier.requestAuthorization()
+            guard let self else { return }
+            if granted {
+                self.preferences.notifyOnSessionEnd = true
+            } else {
+                self.notifyCheck.state = .off
+                self.notifyCheck.toolTip =
+                    "Allow notifications for Tamp in System Settings → Notifications"
+            }
+            self.onChange()
+        }
     }
 
     @objc private func loginToggled() {
