@@ -61,7 +61,7 @@ final class SettingsWindowController: NSWindowController {
         stack.addArrangedSubview(loginCheck)
         stack.addArrangedSubview(spacer())
 
-        stack.addArrangedSubview(header("Prevent Sleep Of"))
+        stack.addArrangedSubview(header("Keep Awake"))
         for toggle in SleepFlags.toggles {
             let (row, check) = flagRow(title: toggle.label, detail: toggle.detail,
                                        action: #selector(sleepFlagTapped(_:)))

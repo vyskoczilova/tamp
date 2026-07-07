@@ -8,11 +8,40 @@ public struct SleepFlags: Codable, Equatable, Sendable {
     public var system: Bool
     /// `-m` — prevent the disk from idle sleeping.
     public var disk: Bool
+    /// `-s` — prevent system sleep, effective only while on AC power.
+    public var acPower: Bool
+    /// `-u` — declare user activity, waking the display. caffeinate holds this
+    /// assertion for the whole session only when the session is timed (`-t`);
+    /// otherwise macOS drops it after a few seconds.
+    public var wake: Bool
 
-    public init(display: Bool = true, system: Bool = true, disk: Bool = false) {
+    public init(
+        display: Bool = true,
+        system: Bool = true,
+        disk: Bool = false,
+        acPower: Bool = false,
+        wake: Bool = false
+    ) {
         self.display = display
         self.system = system
         self.disk = disk
+        self.acPower = acPower
+        self.wake = wake
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case display, system, disk, acPower, wake
+    }
+
+    /// State files written before 1.1.0 lack the newer keys, so every field
+    /// falls back to its default instead of failing the whole decode.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        display = try container.decodeIfPresent(Bool.self, forKey: .display) ?? true
+        system = try container.decodeIfPresent(Bool.self, forKey: .system) ?? true
+        disk = try container.decodeIfPresent(Bool.self, forKey: .disk) ?? false
+        acPower = try container.decodeIfPresent(Bool.self, forKey: .acPower) ?? false
+        wake = try container.decodeIfPresent(Bool.self, forKey: .wake) ?? false
     }
 
     /// The `caffeinate` flag arguments these settings map to.
@@ -21,17 +50,21 @@ public struct SleepFlags: Codable, Equatable, Sendable {
         if display { args.append("-d") }
         if system { args.append("-i") }
         if disk { args.append("-m") }
+        if acPower { args.append("-s") }
+        if wake { args.append("-u") }
         return args
     }
 
     /// The individual sleep types with display labels and a short description —
     /// the single source for UIs that present a per-type toggle (e.g. the
-    /// settings panel's "Prevent Sleep Of").
+    /// settings panel's "Keep Awake").
     public static var toggles: [(label: String, detail: String, keyPath: WritableKeyPath<SleepFlags, Bool>)] {
         [
             ("Display", "Keep the screen awake", \.display),
             ("System", "Keep the Mac awake, even when idle", \.system),
             ("Disk", "Keep disks from spinning down", \.disk),
+            ("AC Power", "Keep the Mac awake while plugged in (no effect on battery)", \.acPower),
+            ("Wake Display", "Wake the display when a session starts", \.wake),
         ]
     }
 }

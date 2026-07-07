@@ -114,8 +114,12 @@ it from both front-ends so they never drift.
 ### Sleep flags → `caffeinate`
 
 `SleepFlags` maps to `caffeinate` arguments: `-d` display, `-i` idle system,
-`-m` disk; `-t <seconds>` is added for timed sessions. Defaults: display + system
-on, disk off. A session never launches a no-op `caffeinate` (falls back to `-i`).
+`-m` disk, `-s` system-on-AC-only, `-u` declare-user-activity (wakes the
+display; caffeinate holds it for the whole session only when timed);
+`-t <seconds>` is added for timed sessions. Defaults: display + system on,
+disk/AC-power/wake off. A session never launches a no-op `caffeinate` (falls
+back to `-i`). New `SleepFlags` fields need `decodeIfPresent` defaults in
+`init(from:)` so pre-existing `state.json` files keep decoding.
 Durations are capped at 7 days (`DurationParser.maxSeconds`) — the cap check
 doubles as the integer-overflow guard.
 
@@ -159,13 +163,13 @@ doubles as the integer-overflow guard.
 ## Roadmap (v2, not yet built)
 
 - `caffeinate -w <pid>` ("keep awake while app X runs")
-- Expose `caffeinate -s` (AC-power keep-awake) and `-u` flags
 - Session extend, end-time display, end-of-session notification
 - Natural-language recurring schedules
 
 Done since v1.0.0: rename Coffee → Tamp; PID-identity safety; 7-day duration
 cap; libproc detection; icon render cache; JSON phase report; MIT license;
-Homebrew tap distribution.
+Homebrew tap distribution; `-s`/`-u` flags (CLI `--ac`/`--wake`, settings
+toggles, v1.1.0).
 
 ## License
 

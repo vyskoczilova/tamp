@@ -63,6 +63,37 @@ check(SleepFlags(display: false, system: true, disk: true).caffeinateArguments =
       "system+disk → -i -m")
 check(SleepFlags(display: false, system: false, disk: false).caffeinateArguments == [],
       "none → []")
+check(SleepFlags(display: false, system: false, disk: false, acPower: true, wake: true)
+        .caffeinateArguments == ["-s", "-u"],
+      "acPower+wake → -s -u")
+check(SleepFlags(display: true, system: true, disk: true, acPower: true, wake: true)
+        .caffeinateArguments == ["-d", "-i", "-m", "-s", "-u"],
+      "all five → -d -i -m -s -u (stable order)")
+
+// A pre-1.1.0 state file (no acPower/wake keys) must keep decoding, with the
+// newer flags defaulting to off and the stored values preserved.
+print("Legacy state decode")
+let legacyTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-legacy-\(UUID().uuidString).json")
+let legacyJSON = """
+{
+  "active" : true,
+  "endsAt" : "2027-01-15T12:00:00Z",
+  "flags" : {
+    "disk" : true,
+    "display" : true,
+    "system" : false
+  },
+  "pid" : 555
+}
+"""
+try? legacyJSON.data(using: .utf8)?.write(to: legacyTmp)
+let legacy = StateStore(url: legacyTmp).loadRaw()
+check(legacy.active == true, "legacy file decodes (active preserved)")
+check(legacy.pid == 555, "legacy pid preserved")
+check(legacy.flags.system == false && legacy.flags.disk == true, "legacy flag values preserved")
+check(legacy.flags.acPower == false && legacy.flags.wake == false, "missing new flags default to off")
+try? FileManager.default.removeItem(at: legacyTmp)
 
 print("StateStore")
 let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
@@ -72,13 +103,14 @@ let endsAt = Date(timeIntervalSince1970: 1_800_000_000)
 store.save(TampState(
     active: true, pid: 4242,
     endsAt: endsAt,
-    flags: SleepFlags(display: true, system: false, disk: true)
+    flags: SleepFlags(display: true, system: false, disk: true, acPower: true, wake: true)
 ))
 let loaded = store.loadRaw()
 check(loaded.active == true, "round-trip active")
 check(loaded.pid == 4242, "round-trip pid")
 check(loaded.endsAt == endsAt, "round-trip endsAt")
-check(loaded.flags == SleepFlags(display: true, system: false, disk: true), "round-trip flags")
+check(loaded.flags == SleepFlags(display: true, system: false, disk: true, acPower: true, wake: true),
+      "round-trip flags (incl. acPower/wake)")
 try? FileManager.default.removeItem(at: tmp)
 
 let missing = StateStore(url: URL(fileURLWithPath: NSTemporaryDirectory())

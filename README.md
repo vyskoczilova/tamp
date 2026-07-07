@@ -73,13 +73,15 @@ tamp icon pourOver   # set the menu bar icon style
 
 # Per-run sleep overrides (otherwise saved preferences apply):
 tamp on --no-display --system
+tamp for 2h --ac       # prevent system sleep only while on AC power
+tamp for 45m --wake    # wake the display when the session starts
 ```
 
 ## How it works
 
 Each session shells out to `/usr/bin/caffeinate` with flags mapped from your
-preferences (`-d` display, `-i` idle system, `-m` disk) and `-t <seconds>` for
-timed sessions. The running PID and session details are persisted to
+preferences (`-d` display, `-i` idle system, `-m` disk, `-s` system-on-AC-only,
+`-u` wake display) and `-t <seconds>` for timed sessions. The running PID and session details are persisted to
 `~/Library/Application Support/Tamp/state.json`; the menu bar app watches that
 file so CLI changes show up immediately. If a tracked process dies (timer
 elapsed or manual kill), the state self-reconciles to "off" — and a recorded
@@ -110,7 +112,6 @@ Scripts/uninstall.sh   # stops the session, unregisters login item, removes app/
 ## Roadmap (v2)
 
 - "Caffeinate while app X runs" (`caffeinate -w <pid>`)
-- Expose `caffeinate -s` (keep awake on AC power) and `-u` (declare user activity)
 - Session extend ("+15 m"), end-time display, end-of-session notification
 - Natural-language recurring schedules
 - Distribution upgrade: Developer ID signing + notarization → Homebrew cask

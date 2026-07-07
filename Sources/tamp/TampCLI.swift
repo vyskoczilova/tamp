@@ -29,15 +29,31 @@ struct SleepOverrides: ParsableArguments {
     @Flag(name: .long, inversion: .prefixedNo, help: "Prevent the disk from idle sleeping.")
     var disk: Bool?
 
+    @Flag(
+        name: .customLong("ac"), inversion: .prefixedNo,
+        help: "Prevent system sleep only while on AC power (no effect on battery)."
+    )
+    var acPower: Bool?
+
+    @Flag(
+        name: .customLong("wake"), inversion: .prefixedNo,
+        help: "Wake the display when the session starts (held for timed sessions only)."
+    )
+    var wake: Bool?
+
     /// Returns flags only if the user overrode at least one; otherwise nil so
     /// the engine falls back to saved preferences.
     func resolved() -> SleepFlags? {
-        guard display != nil || system != nil || disk != nil else { return nil }
+        guard display != nil || system != nil || disk != nil
+                || acPower != nil || wake != nil
+        else { return nil }
         let base = Preferences().sleepFlags
         return SleepFlags(
             display: display ?? base.display,
             system: system ?? base.system,
-            disk: disk ?? base.disk
+            disk: disk ?? base.disk,
+            acPower: acPower ?? base.acPower,
+            wake: wake ?? base.wake
         )
     }
 }

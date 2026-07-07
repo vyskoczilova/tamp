@@ -3,9 +3,6 @@
 [ ] "While app runs" — tamp while Xcode — keeps Mac awake as long as a named
     app is open (uses caffeinate -w <pid>). Useful for builds, video calls, etc.
 
-[ ] Expose remaining caffeinate flags: -s (keep awake on AC power / clamshell),
-    -u (declare user activity, wakes display).
-
 [ ] Session extend ("+15 m") — menu item and `tamp add 15m`.
 
 [ ] Show end time in menu/CLI: "On — 1h 7m left (until 17:30)".
@@ -27,6 +24,9 @@
 
 ## Done
 
+[x] Expose remaining caffeinate flags: -s (AC power) and -u (wake display) —
+    CLI --ac/--wake overrides + settings toggles; legacy state.json still
+    decodes (v1.1.0)
 [x] CLI: on / off / toggle / for / until / status / icon
 [x] Menu bar app with file watcher (CLI changes reflect immediately)
 [x] Timed sessions (caffeinate -t), indefinite sessions

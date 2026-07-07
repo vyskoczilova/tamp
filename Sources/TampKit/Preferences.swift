@@ -9,6 +9,8 @@ public struct Preferences {
         static let display = "preventDisplaySleep"
         static let system = "preventSystemSleep"
         static let disk = "preventDiskSleep"
+        static let acPower = "preventSleepOnAC"
+        static let wake = "wakeDisplayOnStart"
         static let iconStyle = "iconStyle"
     }
 
@@ -25,6 +27,8 @@ public struct Preferences {
             Key.display: true,
             Key.system: true,
             Key.disk: false,
+            Key.acPower: false,
+            Key.wake: false,
         ])
     }
 
@@ -33,13 +37,17 @@ public struct Preferences {
             SleepFlags(
                 display: defaults.bool(forKey: Key.display),
                 system: defaults.bool(forKey: Key.system),
-                disk: defaults.bool(forKey: Key.disk)
+                disk: defaults.bool(forKey: Key.disk),
+                acPower: defaults.bool(forKey: Key.acPower),
+                wake: defaults.bool(forKey: Key.wake)
             )
         }
         nonmutating set {
             defaults.set(newValue.display, forKey: Key.display)
             defaults.set(newValue.system, forKey: Key.system)
             defaults.set(newValue.disk, forKey: Key.disk)
+            defaults.set(newValue.acPower, forKey: Key.acPower)
+            defaults.set(newValue.wake, forKey: Key.wake)
         }
     }
 
