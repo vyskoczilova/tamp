@@ -277,6 +277,105 @@ check(timedReport.phase == "onTimed", "timed → onTimed")
 check(timedReport.remainingSeconds.map { abs($0 - 600) <= 1 } == true, "timed → ≈600s remaining")
 check(StatusReport(state: .inactive(), systemActive: false).phase == "off", "inactive → off")
 
+print("ScheduleParser")
+let weekdays = try? ScheduleParser.parse("weekdays 9-17")
+check(weekdays?.weekdays == Set(2...6), "weekdays → Mon–Fri")
+check(weekdays?.start == TimeOfDay(hour: 9, minute: 0)
+        && weekdays?.end == TimeOfDay(hour: 17, minute: 0), "9-17 → 09:00–17:00")
+check(weekdays?.displayText == "Weekdays 09:00–17:00", "normalized display text")
+check(weekdays?.enabled == true, "new schedules start enabled")
+check((try? ScheduleParser.parse("daily 8:30-18:15"))?.start == TimeOfDay(hour: 8, minute: 30),
+      "8:30 parses minutes")
+check((try? ScheduleParser.parse("every day 9-10"))?.weekdays == Set(1...7), "every day → all 7")
+check((try? ScheduleParser.parse("weekends 10-14"))?.weekdays == Set([1, 7]), "weekends → Sat+Sun")
+check((try? ScheduleParser.parse("mon,wed,fri 9am-5pm"))?.weekdays == Set([2, 4, 6]),
+      "comma day list parses")
+check((try? ScheduleParser.parse("mon,wed,fri 9am-5pm"))?.end == TimeOfDay(hour: 17, minute: 0),
+      "5pm → 17:00")
+check((try? ScheduleParser.parse("MON-FRI 7-9"))?.weekdays == Set(2...6),
+      "day range, case-insensitive")
+check((try? ScheduleParser.parse("fri-mon 7-9"))?.weekdays == Set([6, 7, 1, 2]),
+      "wrapping day range fri-mon")
+check((try? ScheduleParser.parse("daily 12am-12pm"))?.start == TimeOfDay(hour: 0, minute: 0),
+      "12am → 00:00")
+check((try? ScheduleParser.parse("daily 12am-12pm"))?.end == TimeOfDay(hour: 12, minute: 0),
+      "12pm → 12:00")
+checkThrows("empty schedule throws") { _ = try ScheduleParser.parse("") }
+checkThrows("time range without days throws") { _ = try ScheduleParser.parse("9-17") }
+checkThrows("unknown day throws") { _ = try ScheduleParser.parse("funday 9-17") }
+checkThrows("overnight window throws") { _ = try ScheduleParser.parse("weekdays 17-9") }
+checkThrows("zero-length window throws") { _ = try ScheduleParser.parse("daily 9-9") }
+checkThrows("hour 25 throws") { _ = try ScheduleParser.parse("daily 9-25") }
+checkThrows("13pm throws") { _ = try ScheduleParser.parse("daily 9am-13pm") }
+
+print("Scheduler")
+// Fixed UTC calendar (`cal` above); 2026-06-15 is a Monday.
+let workweek = Schedule(
+    weekdays: Set(2...6),
+    start: TimeOfDay(hour: 9, minute: 0), end: TimeOfDay(hour: 17, minute: 0),
+    displayText: "Weekdays 09:00–17:00"
+)
+let monday10 = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 10))!
+let monday17 = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 17))!
+let monday18 = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 18))!
+let window = Scheduler.activeWindow(in: [workweek], at: monday10, calendar: cal)
+check(window != nil, "inside a window → active")
+check(window?.end == monday17, "window end is today 17:00")
+check(window?.start == cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 9)),
+      "window start is today 09:00")
+check(Scheduler.activeWindow(in: [workweek], at: monday18, calendar: cal) == nil,
+      "after hours → no window")
+let saturday10 = cal.date(from: DateComponents(year: 2026, month: 6, day: 20, hour: 10))!
+check(Scheduler.activeWindow(in: [workweek], at: saturday10, calendar: cal) == nil,
+      "weekend → no window")
+var disabledWeek = workweek
+disabledWeek.enabled = false
+check(Scheduler.activeWindow(in: [disabledWeek], at: monday10, calendar: cal) == nil,
+      "disabled schedule is ignored")
+let lateShift = Schedule(
+    weekdays: Set(2...6),
+    start: TimeOfDay(hour: 10, minute: 0), end: TimeOfDay(hour: 19, minute: 0),
+    displayText: "Weekdays 10:00–19:00"
+)
+let monday11 = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 11))!
+let overlapping = Scheduler.activeWindow(in: [workweek, lateShift], at: monday11, calendar: cal)
+check(overlapping?.end == cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 19)),
+      "overlapping windows → latest end wins")
+check(Scheduler.nextTransition(in: [workweek], after: monday10, calendar: cal) == monday17,
+      "inside a window → next transition is its end")
+let tuesday9 = cal.date(from: DateComponents(year: 2026, month: 6, day: 16, hour: 9))!
+check(Scheduler.nextTransition(in: [workweek], after: monday18, calendar: cal) == tuesday9,
+      "after hours → next transition is tomorrow 09:00")
+let friday18 = cal.date(from: DateComponents(year: 2026, month: 6, day: 19, hour: 18))!
+let nextMonday9 = cal.date(from: DateComponents(year: 2026, month: 6, day: 22, hour: 9))!
+check(Scheduler.nextTransition(in: [workweek], after: friday18, calendar: cal) == nextMonday9,
+      "next transition skips the weekend")
+check(Scheduler.nextTransition(in: [disabledWeek], after: monday10, calendar: cal) == nil,
+      "no enabled schedules → no transition")
+// DST: Europe/Prague springs forward 2026-03-29 (02:00 → 03:00). A window
+// whose start falls into the gap must still resolve without crashing.
+var prague = Calendar(identifier: .gregorian)
+prague.timeZone = TimeZone(identifier: "Europe/Prague")!
+let gapSchedule = Schedule(
+    weekdays: Set(1...7),
+    start: TimeOfDay(hour: 2, minute: 30), end: TimeOfDay(hour: 4, minute: 0),
+    displayText: "Daily 02:30–04:00"
+)
+let beforeGap = prague.date(from: DateComponents(year: 2026, month: 3, day: 29, hour: 1))!
+check(Scheduler.nextTransition(in: [gapSchedule], after: beforeGap, calendar: prague) != nil,
+      "spring-forward gap still yields a transition (no crash)")
+
+print("ScheduleStore")
+let schedTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-sched-\(UUID().uuidString).json")
+let schedStore = ScheduleStore(url: schedTmp)
+schedStore.save([workweek, disabledWeek])
+check(schedStore.load() == [workweek, disabledWeek], "schedules round-trip (incl. enabled flag)")
+try? FileManager.default.removeItem(at: schedTmp)
+let schedMissing = ScheduleStore(url: URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-sched-missing-\(UUID().uuidString).json"))
+check(schedMissing.load().isEmpty, "missing schedules file → []")
+
 print("")
 if failures == 0 {
     print("All checks passed.")

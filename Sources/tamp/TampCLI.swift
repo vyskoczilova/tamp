@@ -14,7 +14,7 @@ struct Tamp: ParsableCommand {
         version: appVersion,
         subcommands: [
             On.self, Off.self, Toggle.self, For.self, Until.self, While.self,
-            Add.self, Status.self, Icon.self,
+            Add.self, ScheduleCommand.self, Status.self, Icon.self,
         ],
         defaultSubcommand: Status.self
     )
@@ -156,6 +156,119 @@ struct Add: ParsableCommand {
         let seconds = try DurationParser.seconds(from: duration)
         let state = try CaffeinateController().extend(by: seconds)
         print(describe(state))
+    }
+}
+
+struct ScheduleCommand: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "schedule",
+        abstract: "Manage recurring keep-awake schedules.",
+        discussion: scheduleRuntimeNote,
+        subcommands: [
+            ScheduleAdd.self, ScheduleList.self, ScheduleRemove.self,
+            ScheduleEnable.self, ScheduleDisable.self,
+        ],
+        defaultSubcommand: ScheduleList.self
+    )
+}
+
+let scheduleRuntimeNote = "Schedules run while the Tamp menu bar app is running."
+
+/// Look up a 1-based schedule number from `tamp schedule list`.
+func scheduleIndex(_ number: Int, in schedules: [Schedule]) throws -> Int {
+    guard number >= 1, number <= schedules.count else {
+        throw ValidationError("No schedule #\(number). Run 'tamp schedule list'.")
+    }
+    return number - 1
+}
+
+struct ScheduleAdd: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "add",
+        abstract: "Add a schedule, e.g. 'tamp schedule add weekdays 9-17'."
+    )
+    @Argument(help: "Days + time range: weekdays 9-17, daily 8:30-18, mon,wed,fri 9am-5pm.")
+    var schedule: [String]
+
+    func run() throws {
+        let parsed = try ScheduleParser.parse(schedule.joined(separator: " "))
+        let store = ScheduleStore()
+        var schedules = store.load()
+        schedules.append(parsed)
+        store.save(schedules) // a running menu bar app watches this file
+        print("Added: \(parsed.displayText)")
+        print(scheduleRuntimeNote)
+    }
+}
+
+struct ScheduleList: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "list",
+        abstract: "List schedules ( * marks enabled )."
+    )
+
+    func run() throws {
+        let schedules = ScheduleStore().load()
+        guard !schedules.isEmpty else {
+            print("No schedules. Add one with 'tamp schedule add weekdays 9-17'.")
+            return
+        }
+        for (index, schedule) in schedules.enumerated() {
+            let marker = schedule.enabled ? "*" : " "
+            print("\(marker) \(index + 1). \(schedule.displayText)")
+        }
+        print(scheduleRuntimeNote)
+    }
+}
+
+struct ScheduleRemove: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "remove",
+        abstract: "Remove a schedule by its list number."
+    )
+    @Argument(help: "Schedule number from 'tamp schedule list'.")
+    var number: Int
+
+    func run() throws {
+        let store = ScheduleStore()
+        var schedules = store.load()
+        let removed = schedules.remove(at: try scheduleIndex(number, in: schedules))
+        store.save(schedules)
+        print("Removed: \(removed.displayText)")
+    }
+}
+
+struct ScheduleEnable: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "enable",
+        abstract: "Enable a schedule by its list number."
+    )
+    @Argument(help: "Schedule number from 'tamp schedule list'.")
+    var number: Int
+
+    func run() throws {
+        let store = ScheduleStore()
+        var schedules = store.load()
+        schedules[try scheduleIndex(number, in: schedules)].enabled = true
+        store.save(schedules)
+        print("Enabled: \(schedules[number - 1].displayText)")
+    }
+}
+
+struct ScheduleDisable: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "disable",
+        abstract: "Disable a schedule by its list number (keeps it in the list)."
+    )
+    @Argument(help: "Schedule number from 'tamp schedule list'.")
+    var number: Int
+
+    func run() throws {
+        let store = ScheduleStore()
+        var schedules = store.load()
+        schedules[try scheduleIndex(number, in: schedules)].enabled = false
+        store.save(schedules)
+        print("Disabled: \(schedules[number - 1].displayText)")
     }
 }
 

@@ -69,6 +69,10 @@ tamp for 2h          # keep awake for 2 hours
 tamp until 17:30     # keep awake until 17:30 (rolls to tomorrow if past)
 tamp add 15m         # extend the current timed session (also +15m)
 tamp while Xcode     # keep awake while that process runs (name or PID)
+
+# Recurring schedules (fire while the menu bar app is running):
+tamp schedule add weekdays 9-17
+tamp schedule list   # ( * marks enabled; also: remove/enable/disable <n> )
 tamp status          # show state ( --json for scripting, incl. resolved phase )
 tamp icon            # list icon styles ( * marks current )
 tamp icon pourOver   # set the menu bar icon style
@@ -111,9 +115,16 @@ which this setup doesn't have.)
 Scripts/uninstall.sh   # stops the session, unregisters login item, removes app/state/prefs
 ```
 
-## Roadmap (v2)
+Recurring schedules ("weekdays 9-17", "mon,wed,fri 9am-5pm") live in
+`~/Library/Application Support/Tamp/schedules.json` and are executed by the
+menu bar app: at a window start it launches an ordinary timed session ending
+at the window end. Turning keep-awake off mid-window keeps it off for that
+window; launching the app mid-window catches up. Overnight windows ("22-6")
+aren't supported yet.
 
-- Natural-language recurring schedules
+## Roadmap
+
+- Overnight schedule windows; schedules without the menu bar app (launchd)
 - Distribution upgrade: Developer ID signing + notarization → Homebrew cask
 
 ## License & attribution

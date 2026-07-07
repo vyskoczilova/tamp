@@ -6,7 +6,11 @@
 [ ] "Which app is caffeinating?" — IOKit assertion introspection
     (IOPMCopyAssertionsByProcess) to name the external culprit.
 
-[ ] Recurring schedules — "keep awake weekdays 9–17" — needs a scheduler layer.
+[ ] Overnight schedule windows ("daily 22-6") — rejected with a clear error
+    for now; needs cross-midnight window math.
+
+[ ] Schedules without the menu bar app (launchd) — today they fire only while
+    TampBar runs.
 
 ## Distribution
 
@@ -15,6 +19,12 @@
 
 ## Done
 
+[x] Recurring schedules — "tamp schedule add weekdays 9-17" + Schedules
+    submenu. Deterministic parser (daily/weekdays/weekends/day lists+ranges,
+    24h and am/pm times), schedules.json (watched like state.json), pure
+    Scheduler window math (calendar-injected, DST-safe), ScheduleRunner in
+    TampBar fires plain timed sessions ending at window end. Edge-triggered:
+    manual off mid-window stays off; launching mid-window catches up (v1.4.0)
 [x] "While app runs" — `tamp while Xcode` / `tamp while <pid>` + "Keep Awake
     While…" running-apps submenu (caffeinate -w). Follows the specific
     process instance; ends when it exits, no re-arm on relaunch. Ambiguous
