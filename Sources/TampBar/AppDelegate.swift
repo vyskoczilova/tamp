@@ -249,6 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func extendTapped(_ sender: NSMenuItem) {
+        guard extendPresets.indices.contains(sender.tag) else { return }
         let preset = extendPresets[sender.tag]
         do { try controller.extend(by: preset.seconds) } catch { logTampError("caffeinate action failed", error) }
         refresh()
