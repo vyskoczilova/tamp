@@ -26,7 +26,10 @@ public final class CaffeinateController {
 
         let effectiveFlags = flags ?? preferences.sleepFlags
         var args = effectiveFlags.caffeinateArguments
-        if args.isEmpty { args.append("-i") } // Never launch a no-op caffeinate.
+        // Never launch a no-op caffeinate — and a bare `-u` can't sustain an
+        // untimed session (macOS drops the user-activity assertion after ~5s
+        // when no `-t` is given, and caffeinate exits with it).
+        if args.isEmpty || (seconds == nil && args == ["-u"]) { args.append("-i") }
         if let seconds { args.append(contentsOf: ["-t", String(seconds)]) }
 
         let process = Process()
