@@ -299,7 +299,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.window.initialFirstResponder = field
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         do {
-            let schedule = try ScheduleParser.parse(field.stringValue)
+            let schedule = try ScheduleParser.parse(
+                field.stringValue.trimmingCharacters(in: .whitespaces)
+            )
             var schedules = scheduleStore.load()
             schedules.append(schedule)
             scheduleStore.save(schedules)

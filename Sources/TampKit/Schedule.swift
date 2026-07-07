@@ -118,7 +118,11 @@ public enum ScheduleParser {
         var days: Set<Int> = []
         for part in spec.replacingOccurrences(of: " ", with: "").split(separator: ",").map(String.init) {
             if part.contains("-") || part.contains("–") {
-                let bounds = part.split(whereSeparator: { $0 == "-" || $0 == "–" }).map(String.init)
+                // Keep empty subsequences so "mon--fri" or a stray leading
+                // dash is rejected instead of silently collapsing.
+                let bounds = part
+                    .split(whereSeparator: { $0 == "-" || $0 == "–" }, omittingEmptySubsequences: false)
+                    .map(String.init)
                 guard bounds.count == 2,
                       let from = dayNames[bounds[0]], let to = dayNames[bounds[1]]
                 else { throw ParseError.badDays(original) }
@@ -139,7 +143,11 @@ public enum ScheduleParser {
     }
 
     private static func timeRange(from token: String, original: String) throws -> (TimeOfDay, TimeOfDay) {
-        let bounds = token.split(whereSeparator: { $0 == "-" || $0 == "–" }).map(String.init)
+        // Keep empty subsequences so "-9-17" and "9--17" are rejected instead
+        // of a stray dash silently vanishing.
+        let bounds = token
+            .split(whereSeparator: { $0 == "-" || $0 == "–" }, omittingEmptySubsequences: false)
+            .map(String.init)
         guard bounds.count == 2 else { throw ParseError.badTime(original) }
         return (try timeOfDay(bounds[0], original: original),
                 try timeOfDay(bounds[1], original: original))
@@ -156,7 +164,8 @@ public enum ScheduleParser {
         guard (1...2).contains(parts.count), let hourRaw = Int(parts[0]) else {
             throw ParseError.badTime(original)
         }
-        let minuteRaw = parts.count == 2 ? Int(parts[1]) : 0
+        // Minutes must be two digits ("9:5" is ambiguous — 9:05 or 9:50?).
+        let minuteRaw = parts.count == 2 ? (parts[1].count == 2 ? Int(parts[1]) : nil) : 0
         guard let minute = minuteRaw, (0..<60).contains(minute) else {
             throw ParseError.badTime(original)
         }

@@ -326,6 +326,10 @@ checkThrows("overnight window throws") { _ = try ScheduleParser.parse("weekdays 
 checkThrows("zero-length window throws") { _ = try ScheduleParser.parse("daily 9-9") }
 checkThrows("hour 25 throws") { _ = try ScheduleParser.parse("daily 9-25") }
 checkThrows("13pm throws") { _ = try ScheduleParser.parse("daily 9am-13pm") }
+checkThrows("leading dash throws") { _ = try ScheduleParser.parse("daily -9-17") }
+checkThrows("double dash throws") { _ = try ScheduleParser.parse("daily 9--17") }
+checkThrows("double dash in day range throws") { _ = try ScheduleParser.parse("mon--fri 9-17") }
+checkThrows("one-digit minutes throw (9:5 is ambiguous)") { _ = try ScheduleParser.parse("daily 9:5-10") }
 
 print("Scheduler")
 // Fixed UTC calendar (`cal` above); 2026-06-15 is a Monday.

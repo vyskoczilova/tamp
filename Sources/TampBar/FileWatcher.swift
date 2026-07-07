@@ -22,6 +22,13 @@ final class FileWatcher {
     }
 
     private func arm() {
+        // Self-heal a deleted file (the old inline watcher did this on every
+        // re-arm): without it a .delete event would leave the watcher dead
+        // for the app's lifetime. An empty file reads as "no data" in both
+        // stores, and the next save overwrites it.
+        if !FileManager.default.fileExists(atPath: path) {
+            FileManager.default.createFile(atPath: path, contents: nil)
+        }
         let fd = open(path, O_EVTONLY)
         guard fd >= 0 else { return }
         let source = DispatchSource.makeFileSystemObjectSource(
