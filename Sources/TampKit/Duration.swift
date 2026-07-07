@@ -85,13 +85,9 @@ public enum DurationParser {
               (0..<24).contains(hour), (0..<60).contains(minute)
         else { throw ParseError.invalid(text) }
 
-        var components = calendar.dateComponents([.year, .month, .day], from: now)
-        components.hour = hour
-        components.minute = minute
-        components.second = 0
-        guard var target = calendar.date(from: components) else {
-            throw ParseError.invalid(text)
-        }
+        guard var target = TimeOfDay(hour: hour, minute: minute)
+            .date(onDayOf: now, calendar: calendar)
+        else { throw ParseError.invalid(text) }
         if target <= now {
             guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: target) else {
                 throw ParseError.invalid(text)

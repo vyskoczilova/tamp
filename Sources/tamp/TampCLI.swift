@@ -238,6 +238,16 @@ struct ScheduleRemove: ParsableCommand {
     }
 }
 
+/// Shared body of `schedule enable` / `schedule disable`.
+func setScheduleEnabled(_ number: Int, to enabled: Bool) throws {
+    let store = ScheduleStore()
+    var schedules = store.load()
+    let index = try scheduleIndex(number, in: schedules)
+    schedules[index].enabled = enabled
+    store.save(schedules)
+    print("\(enabled ? "Enabled" : "Disabled"): \(schedules[index].displayText)")
+}
+
 struct ScheduleEnable: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "enable",
@@ -247,11 +257,7 @@ struct ScheduleEnable: ParsableCommand {
     var number: Int
 
     func run() throws {
-        let store = ScheduleStore()
-        var schedules = store.load()
-        schedules[try scheduleIndex(number, in: schedules)].enabled = true
-        store.save(schedules)
-        print("Enabled: \(schedules[number - 1].displayText)")
+        try setScheduleEnabled(number, to: true)
     }
 }
 
@@ -264,11 +270,7 @@ struct ScheduleDisable: ParsableCommand {
     var number: Int
 
     func run() throws {
-        let store = ScheduleStore()
-        var schedules = store.load()
-        schedules[try scheduleIndex(number, in: schedules)].enabled = false
-        store.save(schedules)
-        print("Disabled: \(schedules[number - 1].displayText)")
+        try setScheduleEnabled(number, to: false)
     }
 }
 

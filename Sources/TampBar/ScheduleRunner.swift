@@ -40,34 +40,29 @@ final class ScheduleRunner: NSObject {
     }
 
     /// Re-read the schedules, act on the window containing now, and re-arm
-    /// the timer for the next transition.
+    /// the timer for the next transition. The firing policy itself is pure
+    /// TampKit logic (`Scheduler.firingDecision`); this only executes it.
     func evaluate() {
         let schedules = store.load()
         let now = Date()
         defer { rearm(schedules: schedules, now: now) }
 
-        guard let window = Scheduler.activeWindow(in: schedules, at: now, calendar: .current),
-              firedWindowStart != window.start
-        else { return }
-
-        // Never weaken an existing session: indefinite, while-app, and
-        // longer-running timed sessions all outrank the window. Mark the
-        // window handled either way so it doesn't re-fire mid-window.
-        firedWindowStart = window.start
-        let current = controller.status()
-        if current.active {
-            let outranksWindow = current.watchedPID != nil
-                || current.endsAt == nil
-                || current.endsAt.map({ $0 >= window.end }) == true
-            if outranksWindow { return }
-        }
-        let seconds = Int(window.end.timeIntervalSince(now).rounded())
-        guard seconds > 0 else { return }
-        do {
-            try controller.start(duration: seconds)
-            onChange()
-        } catch {
-            logTampError("schedule start failed", error)
+        switch Scheduler.firingDecision(
+            in: schedules, state: controller.status(),
+            firedWindowStart: firedWindowStart, at: now, calendar: .current
+        ) {
+        case .none:
+            break
+        case .skip(let windowStart):
+            firedWindowStart = windowStart
+        case .fire(let windowStart, let duration):
+            firedWindowStart = windowStart
+            do {
+                try controller.start(duration: duration)
+                onChange()
+            } catch {
+                logTampError("schedule start failed", error)
+            }
         }
     }
 

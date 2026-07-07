@@ -74,7 +74,7 @@ Sources/
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
 │   ├── Duration.swift              parse "1h30m"/"+15m"/bare-minutes and "until HH:MM" (7-day cap); clock/remaining formatting
 │   ├── Schedule.swift              recurring-schedule model + deterministic parser ("weekdays 9-17")
-│   ├── Scheduler.swift             pure window math (activeWindow/nextTransition, calendar-injected)
+│   ├── Scheduler.swift             pure window math + firing policy (activeWindow/nextTransition/firingDecision)
 │   ├── ScheduleStore.swift         read/write schedules.json (mirrors StateStore)
 │   ├── IconStyle.swift             icon styles incl. brewing concepts → SF Symbol names
 │   └── Logging.swift               os.Logger for engine-level failures

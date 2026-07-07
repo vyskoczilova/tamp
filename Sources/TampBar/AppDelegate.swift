@@ -298,29 +298,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func addScheduleTapped() {
-        let alert = NSAlert()
-        alert.messageText = "Add Schedule"
-        alert.informativeText = "Examples: weekdays 9-17, daily 8:30-18, mon,wed,fri 9am-5pm"
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 220, height: 24))
-        field.placeholderString = "e.g. weekdays 9-17"
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Add")
-        alert.addButton(withTitle: "Cancel")
-        alert.window.initialFirstResponder = field
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard let input = promptForText(
+            title: "Add Schedule",
+            informative: "Examples: weekdays 9-17, daily 8:30-18, mon,wed,fri 9am-5pm",
+            placeholder: "e.g. weekdays 9-17", confirmTitle: "Add"
+        ) else { return }
         do {
-            let schedule = try ScheduleParser.parse(
-                field.stringValue.trimmingCharacters(in: .whitespaces)
-            )
+            let schedule = try ScheduleParser.parse(input)
             var schedules = scheduleStore.load()
             schedules.append(schedule)
             scheduleStore.save(schedules)
             refresh()
         } catch {
-            let err = NSAlert()
-            err.messageText = "Invalid schedule"
-            err.informativeText = String(describing: error)
-            err.runModal()
+            presentError("Invalid schedule", error)
         }
     }
 

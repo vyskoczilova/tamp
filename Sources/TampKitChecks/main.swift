@@ -388,6 +388,41 @@ check(Scheduler.nextTransition(in: [workweek], after: friday18, calendar: cal) =
       "next transition skips the weekend")
 check(Scheduler.nextTransition(in: [disabledWeek], after: monday10, calendar: cal) == nil,
       "no enabled schedules → no transition")
+
+// Firing policy — pure and runner-independent, so a second runner (launchd)
+// could never drift on the semantics.
+let monday9 = cal.date(from: DateComponents(year: 2026, month: 6, day: 15, hour: 9))!
+if case .fire(let start, let duration) = Scheduler.firingDecision(
+    in: [workweek], state: .inactive(), firedWindowStart: nil, at: monday10, calendar: cal
+) {
+    check(start == monday9, "fire carries the window start")
+    check(abs(duration - 7 * 3600) <= 1, "no session mid-window → fire until the window end")
+} else {
+    check(false, "no session mid-window should fire")
+}
+check(Scheduler.firingDecision(
+        in: [workweek], state: TampState(active: true, pid: 1),
+        firedWindowStart: nil, at: monday10, calendar: cal
+      ) == .skip(windowStart: monday9),
+      "indefinite session outranks the window → skip")
+check(Scheduler.firingDecision(
+        in: [workweek], state: TampState(active: true, pid: 1, watchedPID: 42, watchedName: "X"),
+        firedWindowStart: nil, at: monday10, calendar: cal
+      ) == .skip(windowStart: monday9),
+      "while-app session outranks the window → skip")
+if case .fire = Scheduler.firingDecision(
+    in: [workweek], state: TampState(active: true, pid: 1, endsAt: monday10.addingTimeInterval(600)),
+    firedWindowStart: nil, at: monday10, calendar: cal
+) {
+    check(true, "shorter timed session is replaced → fire")
+} else {
+    check(false, "shorter timed session is replaced → fire")
+}
+check(Scheduler.firingDecision(
+        in: [workweek], state: .inactive(), firedWindowStart: monday9, at: monday10, calendar: cal
+      ) == .none,
+      "already-handled window → none (manual off stays off)")
+
 // DST: Europe/Prague springs forward 2026-03-29 (02:00 → 03:00). A window
 // whose start falls into the gap must still resolve without crashing.
 var prague = Calendar(identifier: .gregorian)

@@ -17,8 +17,8 @@ public enum Scheduler {
         let weekday = calendar.component(.weekday, from: now)
         var best: (schedule: Schedule, start: Date, end: Date)?
         for schedule in schedules where schedule.enabled && schedule.weekdays.contains(weekday) {
-            guard let start = date(of: schedule.start, onDayOf: now, calendar: calendar),
-                  let end = date(of: schedule.end, onDayOf: now, calendar: calendar),
+            guard let start = schedule.start.date(onDayOf: now, calendar: calendar),
+                  let end = schedule.end.date(onDayOf: now, calendar: calendar),
                   start <= now, now < end
             else { continue }
             if best.map({ end > $0.end }) ?? true {
@@ -42,7 +42,7 @@ public enum Scheduler {
             var best: Date?
             for schedule in schedules where schedule.enabled && schedule.weekdays.contains(weekday) {
                 for time in [schedule.start, schedule.end] {
-                    if let date = date(of: time, onDayOf: day, calendar: calendar), date > now {
+                    if let date = time.date(onDayOf: day, calendar: calendar), date > now {
                         best = best.map { min($0, date) } ?? date
                     }
                 }
@@ -53,13 +53,42 @@ public enum Scheduler {
         return nil
     }
 
-    /// The wall-clock `time` on the same calendar day as `date` (mirrors
-    /// `DurationParser.secondsUntil`'s construction).
-    private static func date(of time: TimeOfDay, onDayOf date: Date, calendar: Calendar) -> Date? {
-        var components = calendar.dateComponents([.year, .month, .day], from: date)
-        components.hour = time.hour
-        components.minute = time.minute
-        components.second = 0
-        return calendar.date(from: components)
+    /// What a schedule runner should do at `now` — the pure firing policy,
+    /// kept here (not in the menu bar app) so it is testable and any future
+    /// second runner can't drift on the semantics.
+    public enum FiringDecision: Equatable, Sendable {
+        /// Nothing to do (no active window, or this window was already handled).
+        case none
+        /// Start a timed session of `duration` seconds ending at the window end.
+        case fire(windowStart: Date, duration: Int)
+        /// A window is active but the current session outranks it — record the
+        /// window as handled without touching the session.
+        case skip(windowStart: Date)
+    }
+
+    /// Decide against the window containing `now`. `firedWindowStart` is the
+    /// runner's edge-trigger marker (the last window start it handled).
+    /// A current session outranks the window — and is never weakened — when it
+    /// is indefinite, a while-app session, or a timed session ending at or
+    /// after the window end.
+    public static func firingDecision(
+        in schedules: [Schedule],
+        state: TampState,
+        firedWindowStart: Date?,
+        at now: Date,
+        calendar: Calendar = .current
+    ) -> FiringDecision {
+        guard let window = activeWindow(in: schedules, at: now, calendar: calendar),
+              firedWindowStart != window.start
+        else { return .none }
+        if state.active {
+            let outranksWindow = state.watchedPID != nil
+                || state.endsAt == nil
+                || state.endsAt.map({ $0 >= window.end }) == true
+            if outranksWindow { return .skip(windowStart: window.start) }
+        }
+        let seconds = Int(window.end.timeIntervalSince(now).rounded())
+        guard seconds > 0 else { return .none }
+        return .fire(windowStart: window.start, duration: seconds)
     }
 }

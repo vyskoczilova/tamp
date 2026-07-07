@@ -16,6 +16,17 @@ public struct TimeOfDay: Codable, Equatable, Comparable, Sendable {
 
     /// Zero-padded "09:05".
     public var display: String { String(format: "%02d:%02d", hour, minute) }
+
+    /// This wall-clock time pinned onto the calendar day of `date`. The single
+    /// place dates come from components (never from adding 86400s), so DST
+    /// transitions resolve to sane wall-clock times everywhere.
+    public func date(onDayOf date: Date, calendar: Calendar) -> Date? {
+        var components = calendar.dateComponents([.year, .month, .day], from: date)
+        components.hour = hour
+        components.minute = minute
+        components.second = 0
+        return calendar.date(from: components)
+    }
 }
 
 /// A recurring keep-awake window: a set of weekdays and a start–end time
