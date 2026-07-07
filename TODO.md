@@ -15,10 +15,6 @@
 [ ] Shell completions + man page in the Homebrew formula
     (ArgumentParser: `tamp --generate-completion-script zsh`).
 
-[ ] "Which app is caffeinating?" — IOKit assertion introspection
-    (IOPMCopyAssertionsByProcess) to name the external culprit. Overlaps with
-    GitHub issue #4 (libproc parent-PID approach) — reconcile before building.
-
 [ ] Recurring schedules — "keep awake weekdays 9–17" — needs a scheduler layer.
 
 ## Distribution
@@ -42,3 +38,6 @@
     status --json phase report; CLI icon-change poke; state-store error logging
 [x] Rename Coffee → Tamp; MIT license
 [x] Homebrew: public tap with prebuilt-binary formula (private source repo)
+[x] "Which app is caffeinating?" — external caffeinate launchers named via
+    libproc parent-PID resolution (issue #4); orphaned processes reported
+    honestly. The IOKit IOPMCopyAssertionsByProcess route wasn't needed.

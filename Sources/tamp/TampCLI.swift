@@ -57,7 +57,7 @@ struct Off: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Allow sleep again.")
     func run() throws {
         let state = CaffeinateController().stop()
-        print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
+        print(describe(state, externalSources: SystemAssertions.externalCaffeinations()))
     }
 }
 
@@ -65,7 +65,7 @@ struct Toggle: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Toggle keep-awake on/off.")
     func run() throws {
         let state = try CaffeinateController().toggle()
-        print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
+        print(describe(state, externalSources: SystemAssertions.externalCaffeinations()))
     }
 }
 
@@ -107,12 +107,13 @@ struct Status: ParsableCommand {
 
     func run() throws {
         let state = CaffeinateController().status()
+        let sources = state.active ? [] : SystemAssertions.externalCaffeinations()
         if json {
-            let report = StatusReport(state: state, systemActive: SystemAssertions.isCaffeinated())
+            let report = StatusReport(state: state, externalSources: sources)
             let data = try JSONEncoder.tamp.encode(report)
             print(String(decoding: data, as: UTF8.self))
         } else {
-            print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
+            print(describe(state, externalSources: sources))
         }
     }
 }
@@ -147,15 +148,15 @@ struct Icon: ParsableCommand {
 }
 
 /// Render a state as a one-line human summary.
-func describe(_ state: TampState, systemActive: Bool = false) -> String {
-    switch state.phase(systemActive: systemActive) {
+func describe(_ state: TampState, externalSources: [ExternalCaffeination] = []) -> String {
+    switch state.phase(externalSources: externalSources) {
     case .off:
         return "☕️ Off — your Mac can sleep normally."
     case .onTimed(let remaining):
         return "☕️ On — \(DurationParser.format(remaining: remaining)) left."
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
-    case .externallyActive:
-        return "☕️ On — caffeinated by another app."
+    case .externallyActive(let sources):
+        return "☕️ On — caffeinated by \(sources.sourceSummary ?? "another app")."
     }
 }

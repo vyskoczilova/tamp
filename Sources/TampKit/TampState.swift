@@ -75,15 +75,17 @@ public struct TampState: Codable, Equatable, Sendable {
         case off
         case onIndefinite
         case onTimed(remaining: TimeInterval)
-        /// The Mac is caffeinated by an external process (not Tamp's own session).
-        case externallyActive
+        /// The Mac is caffeinated by external process(es), not Tamp's own
+        /// session. The sources identify who launched them.
+        case externallyActive(sources: [ExternalCaffeination])
     }
 
-    /// Pass `systemActive: SystemAssertions.isCaffeinated()` to get a phase
-    /// that reflects the real OS state, including external caffeinate processes.
-    public func phase(systemActive: Bool = false, now: Date = Date()) -> Phase {
+    /// Pass `externalSources: SystemAssertions.externalCaffeinations()` to get
+    /// a phase that reflects the real OS state, including external caffeinate
+    /// processes and who launched them.
+    public func phase(externalSources: [ExternalCaffeination] = [], now: Date = Date()) -> Phase {
         guard active else {
-            return systemActive ? .externallyActive : .off
+            return externalSources.isEmpty ? .off : .externallyActive(sources: externalSources)
         }
         if let remaining = remaining(now: now) { return .onTimed(remaining: remaining) }
         return .onIndefinite
@@ -99,22 +101,29 @@ public struct StatusReport: Codable, Equatable, Sendable {
     public let phase: String
     /// Whole seconds left in a timed session, nil otherwise.
     public let remainingSeconds: Int?
+    /// External caffeinate processes and their launchers; present only when
+    /// phase is "externallyActive".
+    public let externalSources: [ExternalCaffeination]?
 
-    public init(state: TampState, systemActive: Bool, now: Date = Date()) {
+    public init(state: TampState, externalSources: [ExternalCaffeination] = [], now: Date = Date()) {
         self.state = state
-        switch state.phase(systemActive: systemActive, now: now) {
+        switch state.phase(externalSources: externalSources, now: now) {
         case .off:
             phase = "off"
             remainingSeconds = nil
+            self.externalSources = nil
         case .onIndefinite:
             phase = "onIndefinite"
             remainingSeconds = nil
+            self.externalSources = nil
         case .onTimed(let remaining):
             phase = "onTimed"
             remainingSeconds = Int(remaining.rounded())
-        case .externallyActive:
+            self.externalSources = nil
+        case .externallyActive(let sources):
             phase = "externallyActive"
             remainingSeconds = nil
+            self.externalSources = sources
         }
     }
 }

@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tamp — keep your Mac awake</title>
-<meta name="description" content="Tamp is a free, open-source macOS menu bar app and CLI that keeps your Mac awake — and the only one that shows when another app is doing it.">
+<meta name="description" content="Tamp is a free, open-source macOS menu bar app and CLI that keeps your Mac awake — and the only one that shows which app is doing it when it's not you.">
 <link rel="canonical" href="https://tamp.kybernaut.cz/">
 <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200"><rect width="1200" height="1200" rx="240" fill="%23201209"/><g transform="translate(180,180) scale(0.7)" fill="%23f5ecdf"><path d="m852 959.95c-59.672-0.046875-108.05-48.422-108-108.14 0-14.766 3.0469-29.344 8.9062-42.891l144.32-331.82c71.203-164.16-4.125-354.98-168.28-426.19-164.16-71.203-354.98 4.125-426.19 168.28-35.672 82.266-35.672 175.64 0 257.86l144.32 331.87c23.719 54.75-1.4062 118.41-56.203 142.13-13.547 5.8594-28.125 8.9062-42.891 8.9062-99.375 0.09375-179.9 80.625-180 180 0 19.875 16.125 36 36 36h792c19.875 0 36-16.125 36-36-0.09375-99.375-80.625-179.9-180-180zm-252-864c45.703-0.046875 90.609 12.375 129.74 36-39.188 23.578-84.047 36-129.74 36s-90.562-12.422-129.74-36c39.141-23.625 84.047-36.047 129.74-36zm-75.609 720h151.22c-10.266 50.438 1.5938 102.84 32.484 144h-216.19c30.938-41.156 42.75-93.562 32.484-144zm-278.21 288c15.281-43.125 56.062-71.953 101.81-72h504c45.75 0.046875 86.531 28.875 101.81 72z"/></g></svg>'>
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <meta property="og:title" content="Tamp — keep your Mac awake">
-<meta property="og:description" content="Free, open-source macOS menu bar app + CLI wrapping Apple's caffeinate. Shows when another app keeps your Mac awake.">
+<meta property="og:description" content="Free, open-source macOS menu bar app + CLI wrapping Apple's caffeinate. Shows which app keeps your Mac awake.">
 <meta property="og:image" content="https://tamp.kybernaut.cz/assets/tamp-menu-bar.png">
 <meta property="og:url" content="https://tamp.kybernaut.cz/">
 <meta property="og:type" content="website">
@@ -23,10 +23,10 @@
   "name": "Tamp",
   "operatingSystem": "macOS 13.0 or later",
   "applicationCategory": "UtilitiesApplication",
-  "description": "Free, open-source macOS menu bar app and CLI that keeps your Mac awake by wrapping the built-in caffeinate. Uniquely shows when another app is keeping the Mac awake.",
+  "description": "Free, open-source macOS menu bar app and CLI that keeps your Mac awake by wrapping the built-in caffeinate. Uniquely shows which app is keeping the Mac awake, naming the process behind it.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "license": "https://github.com/vyskoczilova/tamp/blob/main/LICENSE",
-  "softwareVersion": "1.0.4",
+  "softwareVersion": "1.0.5",
   "downloadUrl": "https://github.com/vyskoczilova/tamp/releases",
   "url": "https://tamp.kybernaut.cz/",
   "sameAs": "https://github.com/vyskoczilova/tamp",
@@ -46,7 +46,9 @@
     { "@type": "Question", "name": "Do I need Xcode to install Tamp?",
       "acceptedAnswer": { "@type": "Answer", "text": "No. Installing via Homebrew needs nothing extra; building from source needs only the Swift 6+ toolchain (Command Line Tools are enough)." } },
     { "@type": "Question", "name": "How is Tamp different from Amphetamine or KeepingYouAwake?",
-      "acceptedAnswer": { "@type": "Answer", "text": "Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows when another app is keeping your Mac awake." } },
+      "acceptedAnswer": { "@type": "Answer", "text": "Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows which app is keeping your Mac awake — naming the process behind the caffeinate." } },
+    { "@type": "Question", "name": "Something keeps my Mac awake — how do I find out what?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Run tamp status or glance at the menu bar: Tamp names the process that launched the caffeinate, e.g. 'caffeinated by bash (pid 1234)' — no hunting through Activity Monitor." } },
     { "@type": "Question", "name": "Does Tamp drain the battery?",
       "acceptedAnswer": { "@type": "Answer", "text": "No. Keep-awake itself is Apple's native caffeinate; Tamp adds a menu bar icon and a lightweight in-process check for external keep-awake activity." } },
     { "@type": "Question", "name": "Can Tamp keep only the display awake?",
@@ -287,7 +289,7 @@
   </button>
   <span class="mb-spacer"></span>
   <div class="mb-right">
-    <a class="mb-release" id="release" href="https://github.com/vyskoczilova/tamp/releases/latest">v1.0.4</a>
+    <a class="mb-release" id="release" href="https://github.com/vyskoczilova/tamp/releases/latest">v1.0.5</a>
     <span class="mb-clock" id="clock" aria-hidden="true"></span>
   </div>
 </header>
@@ -305,7 +307,7 @@
   <a class="mi" href="#faq">Questions</a>
   <hr>
   <a class="mi" href="https://github.com/vyskoczilova/tamp">Star on GitHub <span class="kbd">↗</span></a>
-  <a class="mi" href="https://github.com/vyskoczilova/tamp/releases/tag/v1.0.4">Version 1.0.4</a>
+  <a class="mi" href="https://github.com/vyskoczilova/tamp/releases/tag/v1.0.5">Version 1.0.5</a>
 </nav>
 
 <main>
@@ -315,8 +317,8 @@
     <h1 class="rev">Tamp keeps your Mac awake.<br><em>And tells you when something else does.</em></h1>
     <p class="def rev">
       Tamp is a menu bar app and CLI wrapping Apple's built-in
-      <strong>caffeinate</strong> — and the only keep-awake tool that shows when
-      <strong>another app</strong> is caffeinating your Mac.
+      <strong>caffeinate</strong> — and the only keep-awake tool that shows
+      <strong>which app</strong> is caffeinating your Mac.
     </p>
     <div class="install-row rev">
       <div class="brew">
@@ -345,8 +347,9 @@
       <div class="rev">
         <h3>It tells the truth</h3>
         <p>If any other tool — Amphetamine, a script, an AI agent's hooks — runs
-        <code>caffeinate</code>, Tamp's icon fills and the status says so. No more
-        wondering why the Mac won't sleep.</p>
+        <code>caffeinate</code>, Tamp's icon fills and the status names the culprit:
+        "caffeinated by bash (pid 1234)". No more hunting through Activity Monitor
+        to learn why the Mac won't sleep.</p>
       </div>
       <div class="rev">
         <h3>One state, two faces</h3>
@@ -373,7 +376,7 @@
 <span class="d">$</span> tamp until 17:30       <span class="c"># … until half past five</span>
 <span class="d">$</span> tamp on --no-display   <span class="c"># let the screen sleep, keep the Mac up</span>
 <span class="d">$</span> tamp status
-<span class="o">☕️ On — caffeinated by another app.</span>
+<span class="o">☕️ On — caffeinated by bash (pid 1234).</span>
 <span class="d">$</span> tamp off               <span class="c"># yours stops; other apps' sessions are never touched</span></pre>
     </div>
   </section>
@@ -402,7 +405,7 @@
         <tbody>
           <tr><td>Menu bar app</td><td class="td-tamp">✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
           <tr><td>CLI sharing state with the app</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
-          <tr><td>Shows other apps' keep-awake</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Names who else keeps the Mac awake</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
           <tr><td>Keep awake until a clock time</td><td class="td-tamp">✓</td><td>✓</td><td>—</td><td>—</td></tr>
           <tr><td>Homebrew install</td><td class="td-tamp">✓ tap</td><td>App Store</td><td>✓ cask</td><td>✓ cask</td></tr>
           <tr><td>Open source</td><td class="td-tamp">✓ MIT</td><td>—</td><td>✓ MIT</td><td>✓ MIT</td></tr>
@@ -431,7 +434,11 @@
       </details>
       <details>
         <summary>How is it different from Amphetamine or KeepingYouAwake?</summary>
-        <p>Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows when <em>another</em> app is keeping your Mac awake instead of pretending the machine is free to sleep.</p>
+        <p>Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows <em>which</em> app is keeping your Mac awake — naming the process behind the <code>caffeinate</code> — instead of pretending the machine is free to sleep.</p>
+      </details>
+      <details>
+        <summary>Something keeps my Mac awake — how do I find out what?</summary>
+        <p>Run <code>tamp status</code> or glance at the menu bar: Tamp names the process that launched the <code>caffeinate</code>, e.g. "caffeinated by bash (pid 1234)" — no hunting through Activity Monitor. If the launcher already exited, Tamp shows the orphaned <code>caffeinate</code>'s own PID so you can still deal with it.</p>
       </details>
       <details>
         <summary>Does it drain my battery?</summary>

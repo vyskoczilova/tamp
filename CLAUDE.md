@@ -68,7 +68,7 @@ Sources/
 ├── TampKit/          shared engine library (the only place with real logic)
 │   ├── CaffeinateController.swift  spawn/kill tracked caffeinate; reconcile state
 │   ├── TampState.swift             Codable state model (active/pid/endsAt/flags) + Phase + StatusReport
-│   ├── SystemAssertions.swift      libproc-based check for external caffeinate processes
+│   ├── SystemAssertions.swift      libproc detection of external caffeinates + their launchers
 │   ├── StateStore.swift            read/write the shared state JSON (NSFileCoordinator)
 │   ├── Preferences.swift           sleep-type prefs + icon style (UserDefaults suite)
 │   ├── Duration.swift              parse "1h30m"/"90s"/bare-minutes and "until HH:MM" (7-day cap)
@@ -99,17 +99,24 @@ it from both front-ends so they never drift.
 - `CaffeinateController.status()` reconciles: if the recorded PID is no longer
   a live caffeinate (timer elapsed, manual kill, or PID recycled), state is
   corrected to inactive.
-- When Tamp's own state is inactive, `SystemAssertions.isCaffeinated()` scans
-  the process list in-process via libproc (`proc_listallpids`/`proc_name` —
-  callable from plain Swift, no C shim); if a caffeinate is alive,
-  `TampState.Phase.externallyActive` is returned so both front-ends can display
-  "caffeinated by another app". Tamp never kills or manages external processes.
+- When Tamp's own state is inactive, `SystemAssertions.externalCaffeinations()`
+  scans the process list in-process via libproc (`proc_listallpids`/`proc_name` —
+  callable from plain Swift, no C shim) and resolves each match's launcher via
+  `proc_pidinfo`/`PROC_PIDTBSDINFO` (parent PID + name; the parent lookup runs
+  only for matching PIDs, so a no-caffeinate scan costs the same as before).
+  Live matches ride in `TampState.Phase.externallyActive(sources:)` so both
+  front-ends display "caffeinated by bash (pid 1234)" — the shared wording
+  lives in `ExternalCaffeination.sourceDescription` / `.sourceSummary`. An
+  orphaned caffeinate (parent exited → reparented to launchd) is reported as
+  orphaned with its own PID, never attributed to launchd. Tamp never kills or
+  manages external processes.
   **Icon rule:** filled = any caffeinate active (`.onIndefinite`, `.onTimed`,
   `.externallyActive`); outline = nothing running (`.off` only). Custom-art styles
   ship an outline (inactive) + filled (active) SVG pair, so the rule holds for
   them too — `IconStyle.customAsset(active:)` returns the right one.
 - `tamp status --json` emits a `StatusReport` envelope (state + resolved phase +
-  remainingSeconds) so scripts see external caffeination too.
+  remainingSeconds + externalSources) so scripts see external caffeination —
+  including who launched it — too.
 
 ### Sleep flags → `caffeinate`
 

@@ -137,14 +137,58 @@ if case .onTimed(let r) = timed.phase(now: nowState) {
 check(TampState.inactive().phase() == .off, "inactive → phase off")
 check(TampState(active: true).phase() == .onIndefinite, "active, no endsAt → phase onIndefinite")
 
+print("ExternalCaffeination")
+let bashSource = ExternalCaffeination(pid: 4321, parentPID: 1234, parentName: "bash")
+check(!bashSource.isOrphaned, "named parent → not orphaned")
+check(bashSource.sourceDescription == "bash (pid 1234)", "named parent → 'bash (pid 1234)'")
+let orphanSource = ExternalCaffeination(pid: 4321, parentPID: 1, parentName: "launchd")
+check(orphanSource.isOrphaned, "parent launchd → orphaned")
+check(orphanSource.sourceDescription == "an orphaned caffeinate (pid 4321 — parent exited)",
+      "orphan wording names the caffeinate pid, not launchd")
+check(ExternalCaffeination(pid: 4321, parentPID: nil, parentName: nil).sourceDescription
+      == "an unidentified process (caffeinate pid 4321)", "unreadable parent → unidentified")
+check(ExternalCaffeination(pid: 4321, parentPID: 1234, parentName: nil).sourceDescription
+      == "pid 1234", "unnamed parent → bare pid")
+check([ExternalCaffeination]().sourceSummary == nil, "no sources → nil summary")
+check([bashSource].sourceSummary == "bash (pid 1234)", "single source summary")
+check([bashSource, orphanSource].sourceSummary == "bash (pid 1234) and 1 more",
+      "multiple sources → 'and 1 more'")
+
+print("SystemAssertions — live parent resolution")
+do {
+    let child = Process()
+    child.executableURL = URL(fileURLWithPath: "/usr/bin/caffeinate")
+    child.arguments = ["-i", "-t", "30"]
+    try child.run()
+    let childPID = child.processIdentifier
+    var found: ExternalCaffeination?
+    for _ in 0..<50 { // up to ~1s for the child to appear in the scan
+        if let hit = SystemAssertions.externalCaffeinations().first(where: { $0.pid == childPID }) {
+            found = hit
+            break
+        }
+        usleep(20_000)
+    }
+    check(found != nil, "spawned caffeinate appears in externalCaffeinations()")
+    check(found?.parentPID == getpid(), "its parent resolves to this test runner's pid")
+    check(found?.parentName == "TampKitChecks", "its parent name resolves to the test runner")
+    child.terminate()
+    child.waitUntilExit()
+} catch {
+    check(false, "spawning caffeinate threw: \(error)")
+}
+
 print("StatusReport")
-let extReport = StatusReport(state: .inactive(), systemActive: true)
-check(extReport.phase == "externallyActive", "inactive + systemActive → externallyActive")
+let extReport = StatusReport(state: .inactive(), externalSources: [bashSource])
+check(extReport.phase == "externallyActive", "inactive + external source → externallyActive")
 check(extReport.remainingSeconds == nil, "externallyActive → nil remaining")
-let timedReport = StatusReport(state: timed, systemActive: false, now: nowState)
+check(extReport.externalSources == [bashSource], "externallyActive → sources in the report")
+let timedReport = StatusReport(state: timed, now: nowState)
 check(timedReport.phase == "onTimed", "timed → onTimed")
 check(timedReport.remainingSeconds.map { abs($0 - 600) <= 1 } == true, "timed → ≈600s remaining")
-check(StatusReport(state: .inactive(), systemActive: false).phase == "off", "inactive → off")
+check(timedReport.externalSources == nil, "onTimed → no external sources")
+check(StatusReport(state: .inactive()).phase == "off", "inactive → off")
+check(StatusReport(state: .inactive()).externalSources == nil, "off → no external sources")
 
 print("")
 if failures == 0 {

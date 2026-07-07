@@ -10,7 +10,8 @@
 **Tamp is a free, open-source macOS menu bar app and CLI that keeps your Mac
 awake — a lightweight wrapper around Apple's built-in `caffeinate`. Unlike
 other keep-awake tools, Tamp also detects when *another* app is caffeinating
-your Mac and reflects the machine's real state in the menu bar.**
+your Mac — and names the process that's doing it — so the menu bar reflects
+the machine's real state.**
 
 <p align="center">
   <img src="Assets/tamp-menu-bar.png" width="48%" alt="Tamp's menu bar dropdown showing the state line 'On — caffeinated by another app'">
@@ -38,8 +39,8 @@ binaries (Apple Silicon + Intel); no Xcode or developer tools needed.
 ## What it does
 
 - **Shows the truth about your Mac's sleep** — if any other tool (Amphetamine,
-  a script, Claude Code hooks…) runs `caffeinate`, Tamp's icon and status say
-  "On — caffeinated by another app"
+  a script, Claude Code hooks…) runs `caffeinate`, Tamp's icon fills and the
+  status names the culprit: "On — caffeinated by bash (pid 1234)"
 - **Toggle** keep-awake on/off from the menu bar or with `tamp toggle`
 - **Caffeinate for** a duration (`30m`, `1h`, `1h30m`, `90s`; capped at 7 days)
   or **until** a clock time (`17:30`)
@@ -55,7 +56,7 @@ binaries (Apple Silicon + Intel); no Xcode or developer tools needed.
 | ------------------------------------------- | :------: | :---------------: | :-------------: | :------: |
 | Menu bar app                                 | ✅       | ✅                | ✅              | ✅       |
 | CLI sharing state with the app               | ✅       | ❌                | ❌              | ❌       |
-| Shows when *another* app keeps the Mac awake | ✅       | ❌                | ❌              | ❌       |
+| Shows *which* app keeps the Mac awake        | ✅       | ❌                | ❌              | ❌       |
 | Keep awake until a specific time             | ✅       | ✅                | ❌              | ❌       |
 | Timed sessions (durations)                   | ✅       | ✅                | ✅              | ✅       |
 | Homebrew install                             | ✅ tap   | ❌ App Store      | ✅ cask         | ✅ cask  |
@@ -73,7 +74,8 @@ tamp off             # allow sleep again
 tamp toggle          # flip current state
 tamp for 2h          # keep awake for 2 hours
 tamp until 17:30     # keep awake until 17:30 (rolls to tomorrow if past)
-tamp status          # show state ( --json for scripting, incl. resolved phase )
+tamp status          # show state, naming any external caffeinator
+                     # ( --json for scripting: resolved phase + externalSources )
 tamp icon            # list icon styles ( * marks current )
 tamp icon pourOver   # set the menu bar icon style
 
@@ -94,9 +96,12 @@ so recycled PIDs are harmless.
 
 When Tamp's own state is inactive, it also checks the live process list (via
 libproc, in-process) for any external caffeinate keeping the Mac awake. If one
-exists, the icon and status line show "On — caffeinated by another app" —
-read-only, Tamp never touches external processes. See
-`docs/adr/001-system-aware-caffeinate-detection.md`.
+exists, Tamp resolves its parent process (again via libproc — no subprocesses)
+and the icon and status line name it: "On — caffeinated by bash (pid 1234)".
+If the launcher already exited and the caffeinate was orphaned to `launchd`,
+Tamp says so honestly ("an orphaned caffeinate (pid 5678 — parent exited)")
+instead of misattributing it. Everything stays read-only — Tamp never touches
+external processes. See `docs/adr/001-system-aware-caffeinate-detection.md`.
 
 ## FAQ
 
@@ -113,8 +118,14 @@ only the Swift 6+ toolchain (Command Line Tools are enough).
 
 **How is Tamp different from Amphetamine or KeepingYouAwake?**
 Tamp ships both a CLI and a menu bar app that share one state, and it uniquely
-shows when *another* app is keeping your Mac awake instead of pretending the
-machine is free to sleep.
+shows *which* app is keeping your Mac awake instead of pretending the machine
+is free to sleep.
+
+**Something keeps my Mac awake — how do I find out what?**
+Run `tamp status` (or glance at the menu bar): if any `caffeinate` is running,
+Tamp names the process that launched it, e.g. "caffeinated by bash (pid 1234)".
+No more hunting through Activity Monitor. If the launcher already exited, the
+orphaned `caffeinate`'s own PID is shown so you can still deal with it.
 
 **Does Tamp drain my battery?**
 No. Keep-awake itself is Apple's native `caffeinate`; Tamp's own footprint is

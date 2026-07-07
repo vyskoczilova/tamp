@@ -56,9 +56,10 @@ Claude Code config.
 - ~~`pgrep` is a subprocess call — cheap but not zero cost. It runs at most once
   per menu open and once per file-watcher event, never in a tight loop.~~
   *(Superseded — see Addendum.)*
-- If a future need arises for finer-grained assertion introspection (e.g.
+- ~~If a future need arises for finer-grained assertion introspection (e.g.
   identifying *which* app is caffeinating), IOKit via a C target in Package.swift
-  is the right next step.
+  is the right next step.~~ *(Superseded — the second addendum resolves the
+  "which app" question within libproc, no IOKit needed.)*
 
 ## Addendum (2026-07-06) — pgrep replaced by libproc
 
@@ -69,3 +70,19 @@ that originally favored `pgrep` applied to IOKit's assertion APIs, not to
 libproc. `SystemAssertions.isCaffeinated()` now scans the process list
 in-process; the decision itself (passive, name-based, read-only detection) is
 unchanged.
+
+## Addendum (2026-07-07) — identify the launcher (issue #4)
+
+Detection now also names *who* started an external caffeinate. For each PID
+that matches "caffeinate", `proc_pidinfo(PROC_PIDTBSDINFO)` resolves the parent
+PID (`pbi_ppid`) and `proc_name` its name — still libproc-only, still
+in-process, and the extra two syscalls run only for matching PIDs, so the
+common no-caffeinate scan costs what it did before.
+`SystemAssertions.externalCaffeinations()` returns the matches
+(`ExternalCaffeination`: caffeinate pid, parent pid, parent name);
+`Phase.externallyActive` carries them so both front-ends show
+"caffeinated by bash (pid 1234)" and `status --json` emits `externalSources`.
+Known limit: an orphaned caffeinate reparents to `launchd`, so the trail is
+cold — it is reported honestly as orphaned (with the caffeinate's own PID)
+rather than attributed to launchd. The IOKit assertion route mentioned above
+remains unnecessary.
