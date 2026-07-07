@@ -29,6 +29,7 @@ check((try? DurationParser.seconds(from: "90s")) == 90, "90s → 90")
 check((try? DurationParser.seconds(from: "2h15m30s")) == 8130, "2h15m30s → 8130")
 check((try? DurationParser.seconds(from: "90")) == 5400, "bare 90 → 90 minutes")
 check((try? DurationParser.seconds(from: "+15m")) == 900, "+15m → 900 (leading + allowed)")
+check((try? DurationParser.seconds(from: "+ 15m")) == 900, "+ 15m → 900 (space after + allowed)")
 check((try? DurationParser.seconds(from: "+90")) == 5400, "+90 → 90 minutes")
 checkThrows("bare + throws") { _ = try DurationParser.seconds(from: "+") }
 checkThrows("empty string throws") { _ = try DurationParser.seconds(from: "") }

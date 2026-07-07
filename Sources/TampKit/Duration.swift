@@ -30,7 +30,10 @@ public enum DurationParser {
     /// naturally typed.
     public static func seconds(from text: String) throws -> Int {
         var trimmed = text.trimmingCharacters(in: .whitespaces).lowercased()
-        if trimmed.hasPrefix("+") { trimmed = String(trimmed.dropFirst()) }
+        if trimmed.hasPrefix("+") {
+            // Re-trim so "+ 15m" works like "+15m".
+            trimmed = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+        }
         guard !trimmed.isEmpty else { throw ParseError.empty }
 
         // Bare number means minutes (e.g. "90" → 90 minutes).
