@@ -69,6 +69,13 @@ check(SleepFlags(display: false, system: false, disk: false, acPower: true, wake
 check(SleepFlags(display: true, system: true, disk: true, acPower: true, wake: true)
         .caffeinateArguments == ["-d", "-i", "-m", "-s", "-u"],
       "all five → -d -i -m -s -u (stable order)")
+let wakeOnly = SleepFlags(display: false, system: false, disk: false, wake: true)
+check(wakeOnly.sessionArguments(timed: false) == ["-u", "-i"],
+      "untimed wake-only session gets the -i backstop")
+check(wakeOnly.sessionArguments(timed: true) == ["-u"],
+      "timed wake-only session keeps bare -u (-t sustains it)")
+check(SleepFlags(display: false, system: false, disk: false).sessionArguments(timed: false) == ["-i"],
+      "all-off session falls back to -i")
 
 // A pre-1.1.0 state file (no acPower/wake keys) must keep decoding, with the
 // newer flags defaulting to off and the stored values preserved.

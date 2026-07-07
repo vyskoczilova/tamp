@@ -55,6 +55,17 @@ public struct SleepFlags: Codable, Equatable, Sendable {
         return args
     }
 
+    /// The arguments to actually launch a session with. On top of the raw
+    /// mapping this owns the fallbacks: never a no-op caffeinate, and a bare
+    /// `-u` can't sustain an untimed session (macOS drops the user-activity
+    /// assertion after ~5s when no `-t` is given, and caffeinate exits with
+    /// it) — both get `-i` appended.
+    public func sessionArguments(timed: Bool) -> [String] {
+        var args = caffeinateArguments
+        if args.isEmpty || (!timed && args == ["-u"]) { args.append("-i") }
+        return args
+    }
+
     /// The individual sleep types with display labels and a short description —
     /// the single source for UIs that present a per-type toggle (e.g. the
     /// settings panel's "Keep Awake").
