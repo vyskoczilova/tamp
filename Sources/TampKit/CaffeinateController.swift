@@ -69,10 +69,7 @@ public final class CaffeinateController {
         stop() // Replace any existing session.
 
         let effectiveFlags = flags ?? preferences.sleepFlags
-        var args = effectiveFlags.caffeinateArguments
-        // Never launch a no-op caffeinate — and a bare `-u` can't sustain a
-        // while-app session (untimed; macOS drops it after ~5s without -t).
-        if args.isEmpty || args == ["-u"] { args.append("-i") }
+        var args = effectiveFlags.sessionArguments(timed: false) // while-app is always untimed
         args.append(contentsOf: ["-w", String(watchedPID)])
 
         let state = TampState(
