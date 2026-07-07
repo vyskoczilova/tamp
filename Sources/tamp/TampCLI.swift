@@ -57,7 +57,7 @@ struct Off: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Allow sleep again.")
     func run() throws {
         let state = CaffeinateController().stop()
-        print(describe(state, externalSources: SystemAssertions.externalCaffeinations()))
+        print(describe(state, externalSources: state.externalSources()))
     }
 }
 
@@ -65,7 +65,7 @@ struct Toggle: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Toggle keep-awake on/off.")
     func run() throws {
         let state = try CaffeinateController().toggle()
-        print(describe(state, externalSources: SystemAssertions.externalCaffeinations()))
+        print(describe(state, externalSources: state.externalSources()))
     }
 }
 
@@ -107,7 +107,7 @@ struct Status: ParsableCommand {
 
     func run() throws {
         let state = CaffeinateController().status()
-        let sources = state.active ? [] : SystemAssertions.externalCaffeinations()
+        let sources = state.externalSources()
         if json {
             let report = StatusReport(state: state, externalSources: sources)
             let data = try JSONEncoder.tamp.encode(report)
@@ -157,6 +157,6 @@ func describe(_ state: TampState, externalSources: [ExternalCaffeination] = []) 
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
     case .externallyActive(let sources):
-        return "☕️ On — caffeinated by \(sources.sourceSummary ?? "another app")."
+        return "☕️ On — caffeinated by \(sources.sourceSummary)."
     }
 }

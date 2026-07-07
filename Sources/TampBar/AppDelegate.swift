@@ -49,15 +49,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// open, so it isn't touched here.
     private func refresh() {
         let state = controller.status()
-        let phase = state.phase(externalSources: externalSources(for: state))
+        let phase = state.phase(externalSources: state.externalSources())
         updateIcon(phase: phase)
         rescheduleExpiryPoll(for: state)
-    }
-
-    /// External caffeinate scan, skipped while Tamp's own session is live —
-    /// `phase` ignores external sources then, so the scan would be wasted.
-    private func externalSources(for state: TampState) -> [ExternalCaffeination] {
-        state.active ? [] : SystemAssertions.externalCaffeinations()
     }
 
     private func updateIcon(phase: TampState.Phase) {
@@ -98,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         let state = controller.status()
-        let phase = state.phase(externalSources: externalSources(for: state))
+        let phase = state.phase(externalSources: state.externalSources())
         menu.removeAllItems()
         updateIcon(phase: phase)
 
@@ -140,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .onIndefinite:
             title = "On — until turned off"
         case .externallyActive(let sources):
-            title = "On — caffeinated by \(sources.sourceSummary ?? "another app")"
+            title = "On — caffeinated by \(sources.sourceSummary)"
         }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false

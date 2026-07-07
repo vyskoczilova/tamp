@@ -139,20 +139,20 @@ check(TampState(active: true).phase() == .onIndefinite, "active, no endsAt → p
 
 print("ExternalCaffeination")
 let bashSource = ExternalCaffeination(pid: 4321, parentPID: 1234, parentName: "bash")
-check(!bashSource.isOrphaned, "named parent → not orphaned")
 check(bashSource.sourceDescription == "bash (pid 1234)", "named parent → 'bash (pid 1234)'")
 let orphanSource = ExternalCaffeination(pid: 4321, parentPID: 1, parentName: "launchd")
-check(orphanSource.isOrphaned, "parent launchd → orphaned")
 check(orphanSource.sourceDescription == "an orphaned caffeinate (pid 4321 — parent exited)",
       "orphan wording names the caffeinate pid, not launchd")
 check(ExternalCaffeination(pid: 4321, parentPID: nil, parentName: nil).sourceDescription
       == "an unidentified process (caffeinate pid 4321)", "unreadable parent → unidentified")
 check(ExternalCaffeination(pid: 4321, parentPID: 1234, parentName: nil).sourceDescription
       == "pid 1234", "unnamed parent → bare pid")
-check([ExternalCaffeination]().sourceSummary == nil, "no sources → nil summary")
+check([ExternalCaffeination]().sourceSummary == "another app", "no sources → 'another app' fallback")
 check([bashSource].sourceSummary == "bash (pid 1234)", "single source summary")
 check([bashSource, orphanSource].sourceSummary == "bash (pid 1234) and 1 more",
       "multiple sources → 'and 1 more'")
+check(TampState(active: true).externalSources().isEmpty,
+      "externalSources() skips the scan while a session is active")
 
 print("SystemAssertions — live parent resolution")
 do {

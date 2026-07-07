@@ -80,9 +80,17 @@ public struct TampState: Codable, Equatable, Sendable {
         case externallyActive(sources: [ExternalCaffeination])
     }
 
-    /// Pass `externalSources: SystemAssertions.externalCaffeinations()` to get
-    /// a phase that reflects the real OS state, including external caffeinate
-    /// processes and who launched them.
+    /// Live scan for external caffeinates, skipped while this state's own
+    /// session is active — `phase(externalSources:)` ignores them then, so the
+    /// scan would be wasted. Front-ends fetch through this so the
+    /// only-scan-when-inactive rule lives in one place.
+    public func externalSources() -> [ExternalCaffeination] {
+        active ? [] : SystemAssertions.externalCaffeinations()
+    }
+
+    /// Pass `externalSources: state.externalSources()` to get a phase that
+    /// reflects the real OS state, including external caffeinate processes
+    /// and who launched them.
     public func phase(externalSources: [ExternalCaffeination] = [], now: Date = Date()) -> Phase {
         guard active else {
             return externalSources.isEmpty ? .off : .externallyActive(sources: externalSources)

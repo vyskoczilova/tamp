@@ -18,19 +18,13 @@ public struct ExternalCaffeination: Codable, Equatable, Sendable {
         self.parentName = parentName
     }
 
-    /// The launcher already exited and the caffeinate was reparented to
-    /// launchd (pid 1) — the trail to the real culprit is cold.
-    public var isOrphaned: Bool {
-        if let parentPID { return parentPID <= 1 }
-        return false
-    }
-
     /// Human-readable launcher, shared by both front-ends so the wording never
-    /// drifts: "bash (pid 1234)", or an honest "orphaned" when the parent is
-    /// launchd — naming launchd would misattribute the wake lock.
+    /// drifts: "bash (pid 1234)", or an honest "orphaned" when the launcher
+    /// already exited and the caffeinate was reparented to launchd (pid 1) —
+    /// naming launchd would misattribute the wake lock.
     public var sourceDescription: String {
         guard let parentPID else { return "an unidentified process (caffeinate pid \(pid))" }
-        if isOrphaned { return "an orphaned caffeinate (pid \(pid) — parent exited)" }
+        if parentPID <= 1 { return "an orphaned caffeinate (pid \(pid) — parent exited)" }
         guard let parentName else { return "pid \(parentPID)" }
         return "\(parentName) (pid \(parentPID))"
     }
@@ -38,9 +32,11 @@ public struct ExternalCaffeination: Codable, Equatable, Sendable {
 
 extension [ExternalCaffeination] {
     /// One-line summary for status displays: the first source, plus a count
-    /// when several caffeinates are alive. Nil when the list is empty.
-    public var sourceSummary: String? {
-        guard let first else { return nil }
+    /// when several caffeinates are alive. Falls back to "another app" for an
+    /// empty list (defensive — `phase()` never builds an empty one), so the
+    /// fallback wording lives here and not in each front-end.
+    public var sourceSummary: String {
+        guard let first else { return "another app" }
         return count > 1 ? "\(first.sourceDescription) and \(count - 1) more" : first.sourceDescription
     }
 }

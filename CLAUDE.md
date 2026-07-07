@@ -100,7 +100,9 @@ it from both front-ends so they never drift.
   a live caffeinate (timer elapsed, manual kill, or PID recycled), state is
   corrected to inactive.
 - When Tamp's own state is inactive, `SystemAssertions.externalCaffeinations()`
-  scans the process list in-process via libproc (`proc_listallpids`/`proc_name` —
+  (front-ends reach it via `TampState.externalSources()`, which skips the scan
+  while a session is active since `phase` would ignore it) scans the process
+  list in-process via libproc (`proc_listallpids`/`proc_name` —
   callable from plain Swift, no C shim) and resolves each match's launcher via
   `proc_pidinfo`/`PROC_PIDTBSDINFO` (parent PID + name; the parent lookup runs
   only for matching PIDs, so a no-caffeinate scan costs the same as before).
