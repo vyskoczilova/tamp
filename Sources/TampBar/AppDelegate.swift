@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// open, so it isn't touched here.
     private func refresh() {
         let state = controller.status()
-        let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
+        let phase = state.phase(externalSources: state.externalSources())
         updateIcon(phase: phase)
         rescheduleExpiryPoll(for: state)
     }
@@ -92,7 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuNeedsUpdate(_ menu: NSMenu) {
         let state = controller.status()
-        let phase = state.phase(systemActive: SystemAssertions.isCaffeinated())
+        let phase = state.phase(externalSources: state.externalSources())
         menu.removeAllItems()
         updateIcon(phase: phase)
 
@@ -133,8 +133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             title = "On — \(DurationParser.format(remaining: remaining)) left"
         case .onIndefinite:
             title = "On — until turned off"
-        case .externallyActive:
-            title = "On — caffeinated by another app"
+        case .externallyActive(let sources):
+            title = "On — caffeinated by \(sources.sourceSummary)"
         }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
