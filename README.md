@@ -43,6 +43,9 @@ binaries (Apple Silicon + Intel); no Xcode or developer tools needed.
 - **Toggle** keep-awake on/off from the menu bar or with `tamp toggle`
 - **Caffeinate for** a duration (`30m`, `1h`, `1h30m`, `90s`; capped at 7 days)
   or **until** a clock time (`17:30`)
+- **Refcounted holds for scripts** — `tamp hold <id>` / `tamp release <id>` let
+  any number of concurrent scripts (CI jobs, AI-agent hooks…) share one
+  keep-awake safely: the first hold starts it, only the last release stops it
 - Independently prevent **display / system / disk** sleep
 - The `tamp` CLI and the menu bar app share one source of truth — change state
   in one and the other reflects it immediately
@@ -56,6 +59,7 @@ binaries (Apple Silicon + Intel); no Xcode or developer tools needed.
 | Menu bar app                                 | ✅       | ✅                | ✅              | ✅       |
 | CLI sharing state with the app               | ✅       | ❌                | ❌              | ❌       |
 | Shows when *another* app keeps the Mac awake | ✅       | ❌                | ❌              | ❌       |
+| Refcounted holds for concurrent scripts      | ✅       | ❌                | ❌              | ❌       |
 | Keep awake until a specific time             | ✅       | ✅                | ❌              | ❌       |
 | Timed sessions (durations)                   | ✅       | ✅                | ✅              | ✅       |
 | Homebrew install                             | ✅ tap   | ❌ App Store      | ✅ cask         | ✅ cask  |
@@ -77,6 +81,12 @@ tamp status          # show state ( --json for scripting, incl. resolved phase )
 tamp icon            # list icon styles ( * marks current )
 tamp icon pourOver   # set the menu bar icon style
 
+# Refcounted holds — safe keep-awake for concurrent scripts:
+tamp hold build-42       # first hold starts keep-awake, others just add on
+tamp release build-42    # stops only when the last hold is released
+tamp hold ci --for 4h    # hold that auto-expires (re-holding refreshes it)
+tamp release --all       # escape hatch: drop every hold
+
 # Per-run sleep overrides (otherwise saved preferences apply):
 tamp on --no-display --system
 ```
@@ -91,6 +101,17 @@ file so CLI changes show up immediately. If a tracked process dies (timer
 elapsed or manual kill), the state self-reconciles to "off" — and a recorded
 PID is never trusted (or killed) unless it still names a caffeinate process,
 so recycled PIDs are harmless.
+
+For scripts, `tamp hold <id>` and `tamp release <id>` are a refcounted layer
+over the same session: the first hold starts `caffeinate`, further holds just
+register their id, and the process stops only when the last hold is released
+(and no manual session is active). Hold/release perform their read-modify-write
+as a single `NSFileCoordinator`-coordinated block, which gives real
+cross-process mutual exclusion — concurrent holds from different scripts can't
+race and lose updates, with no hand-rolled lock files. Re-holding an id is
+idempotent (and refreshes an optional `--for` auto-expiry, so a crashed caller
+can't pin the Mac awake forever). An explicit `tamp off` always wins: it
+force-stops everything, holds included.
 
 When Tamp's own state is inactive, it also checks the live process list (via
 libproc, in-process) for any external caffeinate keeping the Mac awake. If one
@@ -120,6 +141,13 @@ machine is free to sleep.
 No. Keep-awake itself is Apple's native `caffeinate`; Tamp's own footprint is
 a menu bar icon plus a lightweight in-process check (no subprocesses) that
 notices external keep-awake activity while idle.
+
+**Can several scripts keep my Mac awake at once without conflicts?**
+Yes — that's what `tamp hold <id>` / `tamp release <id>` are for. Holds are
+refcounted and cross-process safe: keep-awake starts with the first hold and
+stops with the last release, so e.g. multiple Claude Code sessions' hooks can
+each hold and release independently. `tamp off` force-stops everything,
+`tamp hold <id> --for 4h` adds a self-expiry safety net.
 
 **Can I keep only the display awake (or only the system)?**
 Yes — display, system, and disk sleep are controlled independently, per run

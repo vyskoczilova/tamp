@@ -38,6 +38,39 @@ public final class StateStore {
         return result
     }
 
+    /// Coordinated read-modify-write: load the current state, apply `transform`,
+    /// and persist the result as ONE coordinated block. `NSFileCoordinator`
+    /// write coordination is real cross-process mutual exclusion (all Tamp
+    /// processes go through this store), so concurrent `hold`/`release` calls
+    /// from different processes serialize instead of dropping updates — this is
+    /// the primitive that makes refcounted holds safe. Side effects that must
+    /// be decided atomically with the state (spawning/killing caffeinate)
+    /// belong inside `transform`.
+    @discardableResult
+    public func mutate(_ transform: (inout TampState) -> Void) -> TampState {
+        var result = TampState.inactive()
+        var coordError: NSError?
+        coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordError) { writeURL in
+            var state = TampState.inactive()
+            if let data = try? Data(contentsOf: writeURL),
+               let decoded = try? JSONDecoder.tamp.decode(TampState.self, from: data) {
+                state = decoded
+            }
+            transform(&state)
+            do {
+                let data = try JSONEncoder.tamp.encode(state)
+                try data.write(to: writeURL, options: .atomic)
+            } catch {
+                kitLog.error("state mutate save failed: \(String(describing: error), privacy: .public)")
+            }
+            result = state
+        }
+        if let coordError {
+            kitLog.error("state mutate coordination failed: \(coordError, privacy: .public)")
+        }
+        return result
+    }
+
     /// Persist the given state atomically. A failed save is serious — the
     /// tracked caffeinate may already be gone/killed while the file still says
     /// active — so it is logged, though status() self-heals on the next read.

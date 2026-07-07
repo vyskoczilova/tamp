@@ -146,6 +146,174 @@ check(timedReport.phase == "onTimed", "timed → onTimed")
 check(timedReport.remainingSeconds.map { abs($0 - 600) <= 1 } == true, "timed → ≈600s remaining")
 check(StatusReport(state: .inactive(), systemActive: false).phase == "off", "inactive → off")
 
+print("TampState — holders")
+// A state file written before the holders field existed must keep decoding.
+let legacyJSON = #"{"active":false,"flags":{"display":true,"system":true,"disk":false}}"#
+let legacy = try? JSONDecoder.tamp.decode(TampState.self, from: Data(legacyJSON.utf8))
+check(legacy?.holders.isEmpty == true, "pre-holders state file decodes with empty holders")
+
+let holdersTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-holders-\(UUID().uuidString).json")
+let holdersStore = StateStore(url: holdersTmp)
+holdersStore.save(TampState(holders: [
+    TampState.Holder(id: "a"),
+    TampState.Holder(id: "b", expiresAt: endsAt),
+]))
+let loadedHolders = holdersStore.loadRaw()
+check(loadedHolders.holders.map(\.id) == ["a", "b"], "holders round-trip ids")
+check(loadedHolders.holders.last?.expiresAt == endsAt, "holder expiresAt round-trips")
+try? FileManager.default.removeItem(at: holdersTmp)
+
+let mixed = TampState(holders: [
+    TampState.Holder(id: "live"),
+    TampState.Holder(id: "gone", expiresAt: Date(timeIntervalSinceNow: -10)),
+])
+check(mixed.liveHolders().map(\.id) == ["live"], "expired holders are filtered from liveHolders")
+check(mixed.phase() == .heldBy(count: 1), "holders-only state → phase heldBy(1)")
+check(mixed.phase(systemActive: true) == .heldBy(count: 1), "heldBy outranks externallyActive")
+check(TampState(active: true, holders: [TampState.Holder(id: "x")]).phase() == .onIndefinite,
+      "manual session outranks holds in phase")
+
+print("StatusReport — holders")
+let heldReport = StatusReport(state: TampState(holders: [TampState.Holder(id: "x")]), systemActive: false)
+check(heldReport.phase == "heldBy", "holders-only → heldBy report phase")
+check(heldReport.holders == ["x"], "report lists live holder ids")
+
+print("StateStore — mutate")
+let mutTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-mutate-\(UUID().uuidString).json")
+let mutStore = StateStore(url: mutTmp)
+mutStore.mutate { $0.holders.append(TampState.Holder(id: "one")) }
+mutStore.mutate { $0.holders.append(TampState.Holder(id: "two")) }
+check(mutStore.loadRaw().holders.map(\.id) == ["one", "two"], "mutate is read-modify-write, not overwrite")
+try? FileManager.default.removeItem(at: mutTmp)
+
+print("CaffeinateController — hold/release refcounting")
+let refTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-ref-\(UUID().uuidString).json")
+let refController = CaffeinateController(store: StateStore(url: refTmp))
+do {
+    let h1 = try refController.hold("checks-a")
+    check(h1.active == false && h1.pid != nil, "first hold spawns caffeinate without a manual session")
+    let firstPid = h1.pid
+    let h2 = try refController.hold("checks-b")
+    check(h2.pid == firstPid, "second hold reuses the same caffeinate")
+    check(h2.liveHolders().count == 2, "two holds registered")
+    let repeated = try refController.hold("checks-a")
+    check(repeated.liveHolders().count == 2, "re-holding the same id is idempotent")
+    let r1 = try refController.release("checks-a")
+    check(r1.liveHolders().map(\.id) == ["checks-b"], "release removes exactly its own hold")
+    check(firstPid.map { kill($0, 0) == 0 } == true, "caffeinate survives a partial release")
+    let r2 = try refController.release("checks-b")
+    check(r2.pid == nil && r2.holders.isEmpty, "last release clears the tracked pid")
+    if let pid = firstPid {
+        var gone = false
+        for _ in 0..<50 {
+            if kill(pid, 0) != 0 { gone = true; break }
+            usleep(20_000)
+        }
+        check(gone, "caffeinate is gone after the last release")
+    }
+    let r3 = try refController.release("never-held")
+    check(r3.active == false && r3.holders.isEmpty, "releasing an unknown id is a safe no-op")
+} catch {
+    check(false, "hold/release threw: \(error)")
+}
+try? FileManager.default.removeItem(at: refTmp)
+
+print("CaffeinateController — holds vs manual session")
+let mixTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-mix-\(UUID().uuidString).json")
+let mixController = CaffeinateController(store: StateStore(url: mixTmp))
+do {
+    _ = try mixController.hold("bg")
+    let manual = try mixController.start()
+    check(manual.active && manual.liveHolders().map(\.id) == ["bg"], "manual start preserves holds")
+    let released = try mixController.release("bg")
+    check(released.active && released.pid != nil, "releasing under a manual session keeps it running")
+    _ = try mixController.hold("bg2")
+    let stopped = mixController.stop()
+    check(stopped.active == false && stopped.holders.isEmpty && stopped.pid == nil,
+          "manual off hard-stops holds too")
+    _ = try mixController.hold("toggled")
+    let afterToggle = try mixController.toggle()
+    check(afterToggle.active == false && afterToggle.holders.isEmpty,
+          "toggle treats holds as on and stops them")
+} catch {
+    check(false, "holds vs manual threw: \(error)")
+}
+try? FileManager.default.removeItem(at: mixTmp)
+
+print("CaffeinateController — hold survives a dead session process")
+let surviveTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-survive-\(UUID().uuidString).json")
+let surviveController = CaffeinateController(store: StateStore(url: surviveTmp))
+do {
+    let started = try surviveController.start(duration: 60)
+    _ = try surviveController.hold("survivor")
+    if let pid = started.pid {
+        kill(pid, SIGTERM)
+        for _ in 0..<50 {
+            if kill(pid, 0) != 0 { break }
+            usleep(20_000)
+        }
+    }
+    let settled = surviveController.status()
+    check(settled.active == false, "dead manual session reconciles to inactive")
+    check(settled.liveHolders().map(\.id) == ["survivor"], "hold survives the dead session")
+    check(settled.pid.map { kill($0, 0) == 0 } == true, "a replacement caffeinate was spawned for the hold")
+    let drained = surviveController.releaseAll()
+    check(drained.holders.isEmpty && drained.pid == nil, "releaseAll drains holds and stops")
+} catch {
+    check(false, "hold-survives threw: \(error)")
+}
+try? FileManager.default.removeItem(at: surviveTmp)
+
+print("CaffeinateController — hold TTL")
+let ttlTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-ttl-\(UUID().uuidString).json")
+let ttlController = CaffeinateController(store: StateStore(url: ttlTmp))
+do {
+    _ = try ttlController.hold("ephemeral", ttl: 1)
+    check(ttlController.status().phase() == .heldBy(count: 1), "TTL hold is live before expiry")
+    usleep(1_300_000)
+    let expired = ttlController.status()
+    check(expired.phase() == .off && expired.holders.isEmpty && expired.pid == nil,
+          "expired TTL hold is pruned and caffeinate stopped")
+} catch {
+    check(false, "TTL hold threw: \(error)")
+}
+try? FileManager.default.removeItem(at: ttlTmp)
+
+print("CaffeinateController — concurrent holds/releases")
+let concTmp = URL(fileURLWithPath: NSTemporaryDirectory())
+    .appendingPathComponent("tamp-conc-\(UUID().uuidString).json")
+let concIterations = 12
+DispatchQueue.concurrentPerform(iterations: concIterations) { @Sendable i in
+    _ = try? CaffeinateController(store: StateStore(url: concTmp)).hold("conc-\(i)")
+}
+let concController = CaffeinateController(store: StateStore(url: concTmp))
+let afterHolds = concController.status()
+check(afterHolds.liveHolders().count == concIterations,
+      "\(concIterations) concurrent holds all recorded (no lost updates)")
+let concPid = afterHolds.pid
+check(concPid.map { kill($0, 0) == 0 } == true, "one shared caffeinate is live after concurrent holds")
+DispatchQueue.concurrentPerform(iterations: concIterations) { @Sendable i in
+    _ = try? CaffeinateController(store: StateStore(url: concTmp)).release("conc-\(i)")
+}
+let afterReleases = concController.status()
+check(afterReleases.holders.isEmpty && afterReleases.pid == nil,
+      "concurrent releases drain to zero and clear the pid")
+if let pid = concPid {
+    var gone = false
+    for _ in 0..<50 {
+        if kill(pid, 0) != 0 { gone = true; break }
+        usleep(20_000)
+    }
+    check(gone, "shared caffeinate is gone after the last concurrent release")
+}
+try? FileManager.default.removeItem(at: concTmp)
+
 print("")
 if failures == 0 {
     print("All checks passed.")

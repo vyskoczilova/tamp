@@ -33,6 +33,8 @@
 [x] Sleep-flag prefs (display/system/disk) shared between CLI and app
 [x] Icon styles including brewing concepts (custom SVG template art)
 [x] App bundle + launch-at-login (SMAppService)
+[x] Refcounted holds — `tamp hold <id>` / `tamp release <id>` (+ `--for` TTL,
+    `--all`) so concurrent scripts share one keep-awake safely (issue #3)
 [x] External caffeinate detection — icon shows active when another app caffeinated
 [x] Custom… duration input in Keep Awake For submenu
 [x] Settings panel (NSPanel) — sleep flags, icon style, launch-at-login

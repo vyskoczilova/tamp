@@ -44,22 +44,68 @@ public struct TampState: Codable, Equatable, Sendable {
     /// When a timed session ends. Nil for indefinite sessions.
     public var endsAt: Date?
     public var flags: SleepFlags
+    /// Named refcounted holds (`tamp hold <id>`), orthogonal to the manual
+    /// session: caffeinate should run while `active || !holders.isEmpty`.
+    public var holders: [Holder]
+
+    /// One named hold. Registered by external callers (scripts, hooks) that
+    /// want keep-awake without racing each other over a single on/off switch.
+    public struct Holder: Codable, Equatable, Sendable {
+        public var id: String
+        /// Optional self-destruct so a crashed caller can't pin the Mac awake
+        /// forever. Nil means the hold lives until explicitly released.
+        public var expiresAt: Date?
+
+        public init(id: String, expiresAt: Date? = nil) {
+            self.id = id
+            self.expiresAt = expiresAt
+        }
+
+        public func isExpired(now: Date = Date()) -> Bool {
+            guard let expiresAt else { return false }
+            return expiresAt <= now
+        }
+    }
 
     public init(
         active: Bool = false,
         pid: Int32? = nil,
         endsAt: Date? = nil,
-        flags: SleepFlags = SleepFlags()
+        flags: SleepFlags = SleepFlags(),
+        holders: [Holder] = []
     ) {
         self.active = active
         self.pid = pid
         self.endsAt = endsAt
         self.flags = flags
+        self.holders = holders
     }
 
-    /// The inactive state, preserving the desired sleep flags.
+    private enum CodingKeys: String, CodingKey {
+        case active, pid, endsAt, flags, holders
+    }
+
+    /// Custom decode only to default `holders` — state files written before
+    /// the field existed must keep loading.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        active = try container.decode(Bool.self, forKey: .active)
+        pid = try container.decodeIfPresent(Int32.self, forKey: .pid)
+        endsAt = try container.decodeIfPresent(Date.self, forKey: .endsAt)
+        flags = try container.decode(SleepFlags.self, forKey: .flags)
+        holders = try container.decodeIfPresent([Holder].self, forKey: .holders) ?? []
+    }
+
+    /// The inactive state, preserving the desired sleep flags. Also drops all
+    /// holders — this is what a manual "off" means: the user wins, holders
+    /// re-register on their next natural trigger.
     public static func inactive(flags: SleepFlags = SleepFlags()) -> TampState {
         TampState(active: false, flags: flags)
+    }
+
+    /// Holders that have not expired yet.
+    public func liveHolders(now: Date = Date()) -> [Holder] {
+        holders.filter { !$0.isExpired(now: now) }
     }
 
     /// Seconds remaining for a timed session, or nil if indefinite/inactive.
@@ -75,18 +121,23 @@ public struct TampState: Codable, Equatable, Sendable {
         case off
         case onIndefinite
         case onTimed(remaining: TimeInterval)
+        /// Kept awake only by registered holds (`tamp hold`), no manual session.
+        case heldBy(count: Int)
         /// The Mac is caffeinated by an external process (not Tamp's own session).
         case externallyActive
     }
 
     /// Pass `systemActive: SystemAssertions.isCaffeinated()` to get a phase
     /// that reflects the real OS state, including external caffeinate processes.
+    /// A manual session outranks holds for display; holds outrank external.
     public func phase(systemActive: Bool = false, now: Date = Date()) -> Phase {
-        guard active else {
-            return systemActive ? .externallyActive : .off
+        if active {
+            if let remaining = remaining(now: now) { return .onTimed(remaining: remaining) }
+            return .onIndefinite
         }
-        if let remaining = remaining(now: now) { return .onTimed(remaining: remaining) }
-        return .onIndefinite
+        let held = liveHolders(now: now).count
+        if held > 0 { return .heldBy(count: held) }
+        return systemActive ? .externallyActive : .off
     }
 }
 
@@ -95,13 +146,16 @@ public struct TampState: Codable, Equatable, Sendable {
 /// too, without reimplementing the phase logic.
 public struct StatusReport: Codable, Equatable, Sendable {
     public let state: TampState
-    /// One of "off", "onIndefinite", "onTimed", "externallyActive".
+    /// One of "off", "onIndefinite", "onTimed", "heldBy", "externallyActive".
     public let phase: String
     /// Whole seconds left in a timed session, nil otherwise.
     public let remainingSeconds: Int?
+    /// IDs of live (non-expired) holds.
+    public let holders: [String]
 
     public init(state: TampState, systemActive: Bool, now: Date = Date()) {
         self.state = state
+        self.holders = state.liveHolders(now: now).map(\.id)
         switch state.phase(systemActive: systemActive, now: now) {
         case .off:
             phase = "off"
@@ -112,6 +166,9 @@ public struct StatusReport: Codable, Equatable, Sendable {
         case .onTimed(let remaining):
             phase = "onTimed"
             remainingSeconds = Int(remaining.rounded())
+        case .heldBy:
+            phase = "heldBy"
+            remainingSeconds = nil
         case .externallyActive:
             phase = "externallyActive"
             remainingSeconds = nil

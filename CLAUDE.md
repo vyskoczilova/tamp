@@ -89,7 +89,7 @@ it from both front-ends so they never drift.
 ### How the two products stay in sync
 
 - Shared state file: `~/Library/Application Support/Tamp/state.json`
-  (`{ active, pid, endsAt, flags }`).
+  (`{ active, pid, endsAt, flags, holders }`).
 - Shared preferences: `UserDefaults(suiteName: "cz.kybernaut.tamp")`.
 - Whoever acts spawns a detached `caffeinate` and records its PID; stopping kills
   exactly that PID — after verifying it still names a caffeinate (PID reuse).
@@ -109,7 +109,17 @@ it from both front-ends so they never drift.
   ship an outline (inactive) + filled (active) SVG pair, so the rule holds for
   them too — `IconStyle.customAsset(active:)` returns the right one.
 - `tamp status --json` emits a `StatusReport` envelope (state + resolved phase +
-  remainingSeconds) so scripts see external caffeination too.
+  remainingSeconds + holder ids) so scripts see external caffeination too.
+- **Refcounted holds:** `tamp hold <id>` / `tamp release <id>` let concurrent
+  external callers share one keep-awake — caffeinate runs while
+  `active || !holders.isEmpty`. All first-hold/last-release decisions (and the
+  spawn/kill side effects) happen inside `StateStore.mutate`, a single
+  `NSFileCoordinator`-coordinated read-modify-write that provides cross-process
+  mutual exclusion — never do separate load-then-save for state transitions.
+  Manual `tamp off`/`stop()` hard-stops everything, holds included (explicit
+  user command wins; holders re-register on their next trigger). Holds may
+  carry a TTL (`--for`), pruned during `settle()`; a dead tracked process with
+  live holders is respawned there too (how holds survive `-t` expiry).
 
 ### Sleep flags → `caffeinate`
 
@@ -165,7 +175,8 @@ doubles as the integer-overflow guard.
 
 Done since v1.0.0: rename Coffee → Tamp; PID-identity safety; 7-day duration
 cap; libproc detection; icon render cache; JSON phase report; MIT license;
-Homebrew tap distribution.
+Homebrew tap distribution; refcounted `hold`/`release` for concurrent scripts
+(v1.1.0, issue #3).
 
 ## License
 

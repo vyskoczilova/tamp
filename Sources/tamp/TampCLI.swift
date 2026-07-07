@@ -13,7 +13,10 @@ struct Tamp: ParsableCommand {
         """,
         discussion: "Project & release notes: \(appRepoURL.absoluteString)",
         version: appVersion,
-        subcommands: [On.self, Off.self, Toggle.self, For.self, Until.self, Status.self, Icon.self],
+        subcommands: [
+            On.self, Off.self, Toggle.self, For.self, Until.self,
+            Hold.self, Release.self, Status.self, Icon.self,
+        ],
         defaultSubcommand: Status.self
     )
 }
@@ -100,6 +103,59 @@ struct Until: ParsableCommand {
     }
 }
 
+struct Hold: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Register a named hold that keeps the Mac awake (refcounted).",
+        discussion: """
+        Holds let any number of concurrent scripts share keep-awake safely: the \
+        first hold starts caffeinate, further holds just add their id, and it \
+        stops only when the last hold is released (and no manual session is \
+        active). Re-holding the same id refreshes it. 'tamp off' force-stops \
+        everything, holds included.
+        """
+    )
+    @Argument(help: "Hold identifier, e.g. a session or job id.")
+    var id: String
+
+    @Option(name: .customLong("for"), help: ArgumentHelp(
+        "Auto-release after a duration (30m, 4h…), so a crashed caller can't pin the Mac awake. Re-holding refreshes it.",
+        valueName: "duration"
+    ))
+    var duration: String?
+
+    func run() throws {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw ValidationError("Hold id must not be empty.") }
+        let ttl = try duration.map { try DurationParser.seconds(from: $0) }
+        let state = try CaffeinateController().hold(trimmed, ttl: ttl)
+        print(describe(state))
+    }
+}
+
+struct Release: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        abstract: "Release a named hold; keep-awake stops when the last one goes."
+    )
+    @Argument(help: "Hold identifier passed to 'tamp hold'. Unknown ids are a no-op.")
+    var id: String?
+
+    @Flag(name: .long, help: "Release all holds (a manual session keeps running).")
+    var all = false
+
+    func run() throws {
+        let controller = CaffeinateController()
+        let state: TampState
+        if all {
+            state = controller.releaseAll()
+        } else if let id {
+            state = try controller.release(id.trimmingCharacters(in: .whitespacesAndNewlines))
+        } else {
+            throw ValidationError("Provide a hold id or --all.")
+        }
+        print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
+    }
+}
+
 struct Status: ParsableCommand {
     static let configuration = CommandConfiguration(abstract: "Show current state.")
     @Flag(name: .long, help: "Output machine-readable JSON.")
@@ -113,6 +169,10 @@ struct Status: ParsableCommand {
             print(String(decoding: data, as: UTF8.self))
         } else {
             print(describe(state, systemActive: SystemAssertions.isCaffeinated()))
+            let holders = state.liveHolders()
+            if !holders.isEmpty {
+                print("   holds: \(holders.map(\.id).joined(separator: ", "))")
+            }
         }
     }
 }
@@ -155,6 +215,8 @@ func describe(_ state: TampState, systemActive: Bool = false) -> String {
         return "☕️ On — \(DurationParser.format(remaining: remaining)) left."
     case .onIndefinite:
         return "☕️ On — staying awake until turned off."
+    case .heldBy(let count):
+        return "☕️ On — \(count) hold\(count == 1 ? "" : "s") active."
     case .externallyActive:
         return "☕️ On — caffeinated by another app."
     }

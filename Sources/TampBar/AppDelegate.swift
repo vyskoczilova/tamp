@@ -99,8 +99,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(statusLine(phase: phase, state: state))
         menu.addItem(.separator())
 
+        // Holds count as "on" for the toggle: Turn Off hard-stops them too
+        // (controller.toggle() has matching semantics).
+        let canStop = state.active || !state.liveHolders().isEmpty
         let toggle = NSMenuItem(
-            title: state.active ? "Turn Off" : "Keep Awake",
+            title: canStop ? "Turn Off" : "Keep Awake",
             action: #selector(toggleTapped),
             keyEquivalent: ""
         )
@@ -133,6 +136,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             title = "On — \(DurationParser.format(remaining: remaining)) left"
         case .onIndefinite:
             title = "On — until turned off"
+        case .heldBy(let count):
+            title = "On — \(count) hold\(count == 1 ? "" : "s") active"
         case .externallyActive:
             title = "On — caffeinated by another app"
         }

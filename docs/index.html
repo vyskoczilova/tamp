@@ -26,7 +26,7 @@
   "description": "Free, open-source macOS menu bar app and CLI that keeps your Mac awake by wrapping the built-in caffeinate. Uniquely shows when another app is keeping the Mac awake.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
   "license": "https://github.com/vyskoczilova/tamp/blob/main/LICENSE",
-  "softwareVersion": "1.0.4",
+  "softwareVersion": "1.1.0",
   "downloadUrl": "https://github.com/vyskoczilova/tamp/releases",
   "url": "https://tamp.kybernaut.cz/",
   "sameAs": "https://github.com/vyskoczilova/tamp",
@@ -49,6 +49,8 @@
       "acceptedAnswer": { "@type": "Answer", "text": "Tamp ships a CLI and a menu bar app that share one state, and it uniquely shows when another app is keeping your Mac awake." } },
     { "@type": "Question", "name": "Does Tamp drain the battery?",
       "acceptedAnswer": { "@type": "Answer", "text": "No. Keep-awake itself is Apple's native caffeinate; Tamp adds a menu bar icon and a lightweight in-process check for external keep-awake activity." } },
+    { "@type": "Question", "name": "Can several scripts keep the Mac awake at once with Tamp?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes — tamp hold <id> / tamp release <id> are refcounted and cross-process safe: keep-awake starts with the first hold and stops only with the last release, so concurrent scripts never step on each other." } },
     { "@type": "Question", "name": "Can Tamp keep only the display awake?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes — display, system and disk sleep are independent, per run (tamp on --display --no-system) or as saved preferences." } },
     { "@type": "Question", "name": "How do I uninstall Tamp?",
@@ -287,7 +289,7 @@
   </button>
   <span class="mb-spacer"></span>
   <div class="mb-right">
-    <a class="mb-release" id="release" href="https://github.com/vyskoczilova/tamp/releases/latest">v1.0.4</a>
+    <a class="mb-release" id="release" href="https://github.com/vyskoczilova/tamp/releases/latest">v1.1.0</a>
     <span class="mb-clock" id="clock" aria-hidden="true"></span>
   </div>
 </header>
@@ -305,7 +307,7 @@
   <a class="mi" href="#faq">Questions</a>
   <hr>
   <a class="mi" href="https://github.com/vyskoczilova/tamp">Star on GitHub <span class="kbd">↗</span></a>
-  <a class="mi" href="https://github.com/vyskoczilova/tamp/releases/tag/v1.0.4">Version 1.0.4</a>
+  <a class="mi" href="https://github.com/vyskoczilova/tamp/releases/tag/v1.1.0">Version 1.1.0</a>
 </nav>
 
 <main>
@@ -372,6 +374,8 @@
 <span class="d">$</span> tamp for 2h            <span class="c"># … for two hours</span>
 <span class="d">$</span> tamp until 17:30       <span class="c"># … until half past five</span>
 <span class="d">$</span> tamp on --no-display   <span class="c"># let the screen sleep, keep the Mac up</span>
+<span class="d">$</span> tamp hold "$job_id"    <span class="c"># refcounted: first hold starts keep-awake…</span>
+<span class="d">$</span> tamp release "$job_id" <span class="c"># …only the last release stops it — safe for concurrent scripts</span>
 <span class="d">$</span> tamp status
 <span class="o">☕️ On — caffeinated by another app.</span>
 <span class="d">$</span> tamp off               <span class="c"># yours stops; other apps' sessions are never touched</span></pre>
@@ -383,11 +387,14 @@
     <h2 class="eyebrow rev">Real-world integration</h2>
     <p class="def rev" style="max-width: 640px; margin: 0; text-align: left;">
       This is why Tamp shows when another app is caffeinating your Mac: I got
-      tired of not knowing if Claude Code was still working. A couple of lines
-      in my
+      tired of not knowing if Claude Code was still working. My
       <a href="https://gist.github.com/vyskoczilova/d5206f81f80e999cd4b2133c24712d8b">Claude Code hooks</a>
-      mirror straight into Tamp's state — same icon I already glance at for
-      everything else.
+      are now two lines — <code>tamp hold "$session_id"</code> when a session
+      starts working, <code>tamp release "$session_id"</code> when it stops.
+      Holds are refcounted and cross-process safe, so any number of concurrent
+      sessions share one keep-awake: it starts with the first hold and ends
+      with the last release. No lock files, no session registry — and the same
+      menu bar icon I already glance at for everything else.
     </p>
   </section>
 
@@ -403,6 +410,7 @@
           <tr><td>Menu bar app</td><td class="td-tamp">✓</td><td>✓</td><td>✓</td><td>✓</td></tr>
           <tr><td>CLI sharing state with the app</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
           <tr><td>Shows other apps' keep-awake</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
+          <tr><td>Refcounted holds for concurrent scripts</td><td class="td-tamp">✓</td><td>—</td><td>—</td><td>—</td></tr>
           <tr><td>Keep awake until a clock time</td><td class="td-tamp">✓</td><td>✓</td><td>—</td><td>—</td></tr>
           <tr><td>Homebrew install</td><td class="td-tamp">✓ tap</td><td>App Store</td><td>✓ cask</td><td>✓ cask</td></tr>
           <tr><td>Open source</td><td class="td-tamp">✓ MIT</td><td>—</td><td>✓ MIT</td><td>✓ MIT</td></tr>
@@ -436,6 +444,10 @@
       <details>
         <summary>Does it drain my battery?</summary>
         <p>No. Keep-awake itself is Apple's native <code>caffeinate</code>; Tamp adds a menu bar icon and a lightweight in-process check that notices external keep-awake activity while idle.</p>
+      </details>
+      <details>
+        <summary>Can several scripts keep the Mac awake at once?</summary>
+        <p>Yes — <code>tamp hold &lt;id&gt;</code> / <code>tamp release &lt;id&gt;</code> are refcounted and cross-process safe: keep-awake starts with the first hold and stops only with the last release, so concurrent CI jobs or AI-agent hooks never step on each other. <code>tamp hold &lt;id&gt; --for 4h</code> adds a self-expiry safety net, and <code>tamp off</code> always force-stops everything.</p>
       </details>
       <details>
         <summary>Can I keep only the display awake?</summary>
