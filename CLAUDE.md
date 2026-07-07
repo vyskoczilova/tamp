@@ -145,27 +145,43 @@ doubles as the integer-overflow guard.
 - Keep `tamp` and `TampBar` symmetric: any capability one exposes, the other
   should be able to reach through `TampKit`.
 
+## GitHub
+
+- **Main repo:** [`vyskoczilova/tamp`](https://github.com/vyskoczilova/tamp) —
+  public, issues enabled. `TampKit/Version.swift`'s `appRepoURL` is the
+  in-app source of truth for this link (Settings footer, release-notes URL).
+- **Homebrew tap:** [`vyskoczilova/homebrew-tap`](https://github.com/vyskoczilova/homebrew-tap)
+  — holds only `Formula/tamp.rb`, no source code.
+- **GitHub Pages site:** `docs/` on the `main` branch publishes to
+  **https://tamp.kybernaut.cz** (custom domain via `docs/CNAME`) — the
+  marketing/landing page, entirely separate from the Swift app. Edit
+  `docs/index.html` / `docs/assets/` directly; pushes to `main` redeploy
+  automatically (no build step, no Jekyll — see `docs/.nojekyll`).
+- **ADRs:** significant design decisions are recorded in `docs/adr/` (e.g.
+  `001-system-aware-caffeinate-detection.md`). Add a new ADR for decisions
+  worth explaining to a future reader, not routine changes.
+- **Issues vs `TODO.md`:** the feature backlog lives in `TODO.md` (checked
+  into git); community-sourced ideas (e.g. from Reddit feedback) get filed as
+  GitHub issues instead — the two can drift, so check both before roadmap work.
+
 ## Distribution (Homebrew)
 
-- Public tap: `vyskoczilova/homebrew-tap` (`Formula/tamp.rb`) — the source repo
-  is private, so the formula installs **prebuilt binaries** from zips attached
-  to the tap repo's GitHub Releases. Formula downloads don't get the Gatekeeper
-  quarantine attribute, so ad-hoc signing is fine through this path.
+- Public tap: `vyskoczilova/homebrew-tap` (`Formula/tamp.rb`) — the formula
+  installs **prebuilt binaries** from zips attached to GitHub Releases on the
+  main `vyskoczilova/tamp` repo (both repos are public — see GitHub section
+  above). Formula downloads don't get the Gatekeeper quarantine attribute, so
+  ad-hoc signing is fine through this path.
 - `Scripts/make-release.sh` builds the universal zip, uploads the release, and
   bumps the formula.
 - Upgrade path: Developer ID + notarization → proper cask (`Casks/tamp.rb`),
   one-step /Applications install.
 
-## Roadmap (v2, not yet built)
+## Roadmap
 
-- `caffeinate -w <pid>` ("keep awake while app X runs")
-- Expose `caffeinate -s` (AC-power keep-awake) and `-u` flags
-- Session extend, end-time display, end-of-session notification
-- Natural-language recurring schedules
-
-Done since v1.0.0: rename Coffee → Tamp; PID-identity safety; 7-day duration
-cap; libproc detection; icon render cache; JSON phase report; MIT license;
-Homebrew tap distribution.
+Tracked in `TODO.md` (Features / Distribution / Done) — edit that file
+directly rather than this section so the two can't drift. Open GitHub issues
+(e.g. #4) sometimes cover the same item with more implementation detail than
+the one-liner in `TODO.md`.
 
 ## License
 

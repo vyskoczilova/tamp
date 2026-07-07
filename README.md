@@ -172,13 +172,9 @@ which this setup doesn't have.)
 Scripts/uninstall.sh   # stops the session, unregisters login item, removes app/state/prefs
 ```
 
-## Roadmap (v2)
+## Roadmap
 
-- "Caffeinate while app X runs" (`caffeinate -w <pid>`)
-- Expose `caffeinate -s` (keep awake on AC power) and `-u` (declare user activity)
-- Session extend ("+15 m"), end-time display, end-of-session notification
-- Natural-language recurring schedules
-- Distribution upgrade: Developer ID signing + notarization → Homebrew cask
+See [`TODO.md`](TODO.md) for the up-to-date backlog.
 
 ## License & attribution
 

@@ -16,7 +16,8 @@
     (ArgumentParser: `tamp --generate-completion-script zsh`).
 
 [ ] "Which app is caffeinating?" — IOKit assertion introspection
-    (IOPMCopyAssertionsByProcess) to name the external culprit.
+    (IOPMCopyAssertionsByProcess) to name the external culprit. Overlaps with
+    GitHub issue #4 (libproc parent-PID approach) — reconcile before building.
 
 [ ] Recurring schedules — "keep awake weekdays 9–17" — needs a scheduler layer.
 
