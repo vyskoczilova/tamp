@@ -52,7 +52,9 @@
     { "@type": "Question", "name": "Can Tamp keep only the display awake?",
       "acceptedAnswer": { "@type": "Answer", "text": "Yes — display, system and disk sleep are independent, per run (tamp on --display --no-system) or as saved preferences." } },
     { "@type": "Question", "name": "How do I uninstall Tamp?",
-      "acceptedAnswer": { "@type": "Answer", "text": "brew uninstall tamp, delete /Applications/Tamp.app, and optionally remove ~/Library/Application Support/Tamp. The repo ships an uninstall.sh that does all of it." } }
+      "acceptedAnswer": { "@type": "Answer", "text": "brew uninstall tamp, delete /Applications/Tamp.app, and optionally remove ~/Library/Application Support/Tamp. The repo ships an uninstall.sh that does all of it." } },
+    { "@type": "Question", "name": "How do I report a bug or contribute?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Open an issue or pull request on GitHub — I read all of them. For anything else, email karolina@kybernaut.cz." } }
   ]
 }
 </script>
@@ -74,6 +76,7 @@
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
+  html, body { max-width: 100%; overflow-x: hidden; }
   body {
     margin: 0;
     background: var(--bg);
@@ -187,9 +190,9 @@
   .ghstar:hover { border-color: var(--crema); text-decoration: none; }
   .hero .fine { color: var(--muted); font-size: 13.5px; margin: 0 0 52px; }
 
-  .shots { display: flex; gap: 4%; align-items: flex-start; }
+  .shots { display: flex; gap: 4%; align-items: flex-start; max-width: 100%; }
   .shots img {
-    width: 48%; height: auto; border-radius: 14px;
+    width: 48%; max-width: 100%; height: auto; border-radius: 14px;
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.5);
     border: 1px solid var(--line);
   }
@@ -260,11 +263,14 @@
   }
 
   @media (max-width: 720px) {
-    .hero { padding-top: 64px; }
+    .hero { padding-top: 96px; }
+    .hero::before { display: none; } /* the desktop glow bleeds 200px past .hero on each side — not worth clipping-safety on mobile, just drop it */
     .shots { flex-direction: column; gap: 18px; }
     .shots img { width: 100%; }
     .claims { grid-template-columns: 1fr; gap: 28px; }
     .mb-right .hide-sm { display: none; }
+    .brew { padding: 13px 16px; }
+    .brew .dollar { padding: 0 2px 0 0; }
   }
 </style>
 </head>
@@ -294,6 +300,7 @@
   <a class="mi" href="#install">Install</a>
   <a class="mi" href="#why">Why Tamp</a>
   <a class="mi" href="#cli">Command line</a>
+  <a class="mi" href="#hooks">Real-world use</a>
   <a class="mi" href="#compare">Compared</a>
   <a class="mi" href="#faq">Questions</a>
   <hr>
@@ -371,6 +378,19 @@
     </div>
   </section>
 
+  <!-- ======= real-world: Claude Code hooks ======= -->
+  <section class="wrap" id="hooks">
+    <h2 class="eyebrow rev">Real-world integration</h2>
+    <p class="def rev" style="max-width: 640px; margin: 0; text-align: left;">
+      This is why Tamp shows when another app is caffeinating your Mac: I got
+      tired of not knowing if Claude Code was still working. A couple of lines
+      in my
+      <a href="https://gist.github.com/vyskoczilova/d5206f81f80e999cd4b2133c24712d8b">Claude Code hooks</a>
+      mirror straight into Tamp's state — same icon I already glance at for
+      everything else.
+    </p>
+  </section>
+
   <!-- ======= comparison ======= -->
   <section class="wrap" id="compare">
     <h2 class="eyebrow rev">Compared</h2>
@@ -425,13 +445,17 @@
         <summary>How do I uninstall it?</summary>
         <p><code>brew uninstall tamp</code>, delete <code>/Applications/Tamp.app</code>, and optionally remove <code>~/Library/Application&nbsp;Support/Tamp</code>. The repo ships an <code>uninstall.sh</code> that does all of it, login item included.</p>
       </details>
+      <details>
+        <summary>How do I report a bug or contribute?</summary>
+        <p>Open an <a href="https://github.com/vyskoczilova/tamp/issues">issue</a> or pull request on GitHub — I read all of them. For anything else, email <a href="mailto:karolina@kybernaut.cz">karolina@kybernaut.cz</a>.</p>
+      </details>
     </div>
   </section>
 </main>
 
 <footer>
   <div class="wrap cols">
-    <span>MIT · © 2026 <a href="https://kybernaut.cz">Karolína Vyskočilová</a></span>
+    <span>MIT · © 2026 <a href="https://kybernaut.cz">Karolína Vyskočilová</a> · <a href="mailto:karolina@kybernaut.cz">Contact</a></span>
     <span><a href="https://github.com/vyskoczilova/tamp">GitHub</a> · <a href="https://github.com/vyskoczilova/tamp/releases">Releases</a> · <a href="https://github.com/vyskoczilova/tamp/blob/main/Sources/TampBar/Icons/CREDITS.txt">Icon credits (Noun Project, CC BY 3.0)</a></span>
   </div>
 </footer>
